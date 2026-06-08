@@ -1,0 +1,59 @@
+name: FRITO Complete Test Suite
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 4 * * *'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write frito config
+        run: |
+          mkdir -p ~/.ami
+          echo '${{ secrets.AMI_FRITO }}' > ~/.ami/frito.json
+          chmod 600 ~/.ami/frito.json
+          echo "Config written: $(stat -c%s ~/.ami/frito.json) bytes, perms $(stat -c%a ~/.ami/frito.json)"
+
+      - name: Install dependencies
+        run: sudo apt-get install -y jq
+
+      - name: Install ami
+        run: |
+          curl -fsSL https://www.superinference.org/install.sh | bash
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Verify ami
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          ami --version
+
+      - name: "Suite 1: Install & Binary"
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          bash tests/install.sh
+
+      - name: "Suite 2: Security & Integrity"
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          bash tests/security.sh
+
+      - name: "Suite 3: Config Validation"
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          bash tests/config.sh
+
+      - name: "Suite 4: CLI Flags & Auto-Detection"
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          bash tests/cli.sh
+
+      - name: "Suite 5: Provider Tests (1000+)"
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          bash tests/providers.sh

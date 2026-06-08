@@ -1,0 +1,11 @@
+node_modules/
+.env
+.env.*
+frito.json
+credentials.json
+*.pem
+*.key
+dist/
+build/
+*.map
+.superinference/
