@@ -7,7 +7,6 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/helpers.sh"
 
-FRITO_CONFIG="${FRITO_CONFIG:-$HOME/.ami/frito.json}"
 IMAGE="${OPENSHELL_IMAGE:-openshell-ami:test}"
 CONTAINER_ENGINE="${CONTAINER_ENGINE:-docker}"
 RUN="$CONTAINER_ENGINE run --rm"
@@ -209,34 +208,10 @@ fi
 # ═══════════════════════════════════════════════════════════════════
 section "Detached Mode (Autonomous Execution)"
 
-# Pick a working provider from frito config
-DETACHED_KEY=""
-DETACHED_ENV=""
-DETACHED_MODEL=""
-
-if [ -f "$FRITO_CONFIG" ]; then
-  for _pid in groq google cerebras openrouter mistral; do
-    if has_key "$_pid"; then
-      _k=$(get_key "$_pid")
-      _m=$(get_model "$_pid")
-      case "$_pid" in
-        google)    DETACHED_ENV="GOOGLE_API_KEY" ;;
-        groq)      DETACHED_ENV="GROQ_API_KEY" ;;
-        mistral)   DETACHED_ENV="MISTRAL_API_KEY" ;;
-        cerebras)  DETACHED_ENV="CEREBRAS_API_KEY" ;;
-        *)         DETACHED_ENV="AI_API_KEY" ;;
-      esac
-      DETACHED_KEY="$_k"
-      DETACHED_MODEL="$_m"
-      break
-    fi
-  done
-fi
-
-if [ -n "$DETACHED_KEY" ]; then
+if [ -n "${AI_API_KEY:-}" ]; then
   # Test: simple detached prompt produces JSONL output
   DETACHED_OUT=$(timeout 120 $RUN \
-    -e "$DETACHED_ENV=$DETACHED_KEY" \
+    -e "AI_API_KEY=$AI_API_KEY" \
     -e AGENT_PROMPT="What is 2+2? Answer with just the number." \
     "$IMAGE" 2>/dev/null || echo "TIMEOUT")
 
@@ -245,7 +220,6 @@ if [ -n "$DETACHED_KEY" ]; then
   elif [ -n "$DETACHED_OUT" ]; then
     pass "detached mode: produced output (${#DETACHED_OUT} bytes)"
 
-    # Test: output contains valid JSON lines
     VALID_JSON_LINES=0
     while IFS= read -r line; do
       if [ -n "$line" ] && echo "$line" | jq . >/dev/null 2>&1; then
@@ -264,7 +238,7 @@ if [ -n "$DETACHED_KEY" ]; then
 
   # Test: detached mode with explicit CLI args (bypass entrypoint env)
   CLI_OUT=$(timeout 120 $RUN \
-    -e "$DETACHED_ENV=$DETACHED_KEY" \
+    -e "AI_API_KEY=$AI_API_KEY" \
     "$IMAGE" ami --prompt "What is 3+3? Answer with just the number." \
     --yolo --output-format jsonl 2>/dev/null || echo "TIMEOUT")
 
@@ -279,7 +253,7 @@ if [ -n "$DETACHED_KEY" ]; then
   # Test: exit code 0 on success
   EXIT_CODE=0
   timeout 120 $RUN \
-    -e "$DETACHED_ENV=$DETACHED_KEY" \
+    -e "AI_API_KEY=$AI_API_KEY" \
     -e AGENT_PROMPT="What is 1+1? Answer with just the number." \
     "$IMAGE" >/dev/null 2>&1 || EXIT_CODE=$?
 
@@ -291,9 +265,9 @@ if [ -n "$DETACHED_KEY" ]; then
     skip "detached mode: exit code" "got $EXIT_CODE (may be expected for non-interactive)"
   fi
 else
-  skip "detached mode: JSONL output" "no API key available"
-  skip "detached mode: CLI args" "no API key available"
-  skip "detached mode: exit code" "no API key available"
+  skip "detached mode: JSONL output" "no AI_API_KEY set"
+  skip "detached mode: CLI args" "no AI_API_KEY set"
+  skip "detached mode: exit code" "no AI_API_KEY set"
 fi
 
 # ═══════════════════════════════════════════════════════════════════

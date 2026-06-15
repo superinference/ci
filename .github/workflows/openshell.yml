@@ -13,12 +13,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Write frito config
-        run: |
-          mkdir -p ~/.ami
-          echo '${{ secrets.AMI_FRITO }}' > ~/.ami/frito.json
-          chmod 600 ~/.ami/frito.json
-
       - name: Install dependencies
         run: sudo apt-get install -y jq
 
@@ -37,6 +31,8 @@ jobs:
           docker image ls openshell-ami:test
 
       - name: "Suite: OpenShell Container Tests"
+        env:
+          AI_API_KEY: ${{ secrets.AI_API_KEY }}
         run: |
           export OPENSHELL_IMAGE=openshell-ami:test
           export CONTAINER_ENGINE=docker
