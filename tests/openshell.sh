@@ -10,6 +10,7 @@ source "$SCRIPT_DIR/helpers.sh"
 IMAGE="${OPENSHELL_IMAGE:-openshell-ami:test}"
 CONTAINER_ENGINE="${CONTAINER_ENGINE:-docker}"
 RUN="$CONTAINER_ENGINE run --rm"
+SHELL_RUN="$CONTAINER_ENGINE run --rm --entrypoint bash"
 
 echo ""
 echo "$(bold 'OpenShell Container Integration Tests')"
@@ -62,7 +63,7 @@ fi
 section "Sandbox User & Filesystem"
 
 # Test: runs as sandbox user
-WHOAMI=$($RUN "$IMAGE" bash -c 'whoami' 2>/dev/null || echo "")
+WHOAMI=$($SHELL_RUN "$IMAGE" -c 'whoami' 2>/dev/null || echo "")
 if [ "$WHOAMI" = "sandbox" ]; then
   pass "runs as sandbox user"
 else
@@ -70,7 +71,7 @@ else
 fi
 
 # Test: home directory is /sandbox
-HOME_DIR=$($RUN "$IMAGE" bash -c 'echo $HOME' 2>/dev/null || echo "")
+HOME_DIR=$($SHELL_RUN "$IMAGE" -c 'echo $HOME' 2>/dev/null || echo "")
 if [ "$HOME_DIR" = "/sandbox" ]; then
   pass "home directory is /sandbox"
 else
@@ -78,7 +79,7 @@ else
 fi
 
 # Test: supervisor user exists
-SUPERVISOR=$($RUN --user root "$IMAGE" bash -c 'id supervisor 2>/dev/null && echo exists || echo missing' 2>/dev/null || echo "")
+SUPERVISOR=$($CONTAINER_ENGINE run --rm --entrypoint bash --user root "$IMAGE" -c 'id supervisor 2>/dev/null && echo exists || echo missing' 2>/dev/null || echo "")
 if echo "$SUPERVISOR" | grep -q "exists"; then
   pass "supervisor user exists"
 else
@@ -86,7 +87,7 @@ else
 fi
 
 # Test: /sandbox is writable
-WRITABLE=$($RUN "$IMAGE" bash -c 'touch /sandbox/test_write && echo ok && rm /sandbox/test_write' 2>/dev/null || echo "")
+WRITABLE=$($SHELL_RUN "$IMAGE" -c 'touch /sandbox/test_write && echo ok && rm /sandbox/test_write' 2>/dev/null || echo "")
 if [ "$WRITABLE" = "ok" ]; then
   pass "/sandbox is writable"
 else
@@ -94,7 +95,7 @@ else
 fi
 
 # Test: /tmp is writable
-TMP_WRITABLE=$($RUN "$IMAGE" bash -c 'touch /tmp/test_write && echo ok && rm /tmp/test_write' 2>/dev/null || echo "")
+TMP_WRITABLE=$($SHELL_RUN "$IMAGE" -c 'touch /tmp/test_write && echo ok && rm /tmp/test_write' 2>/dev/null || echo "")
 if [ "$TMP_WRITABLE" = "ok" ]; then
   pass "/tmp is writable"
 else
@@ -102,7 +103,7 @@ else
 fi
 
 # Test: /etc is not writable by sandbox user
-ETC_WRITABLE=$($RUN "$IMAGE" bash -c 'touch /etc/test_write 2>/dev/null && echo writable || echo readonly' 2>/dev/null || echo "readonly")
+ETC_WRITABLE=$($SHELL_RUN "$IMAGE" -c 'touch /etc/test_write 2>/dev/null && echo writable || echo readonly' 2>/dev/null || echo "readonly")
 if [ "$ETC_WRITABLE" = "readonly" ]; then
   pass "/etc is read-only for sandbox user"
 else
@@ -110,7 +111,7 @@ else
 fi
 
 # Test: PATH includes /sandbox/.local/bin
-PATH_CHECK=$($RUN "$IMAGE" bash -c 'echo $PATH' 2>/dev/null || echo "")
+PATH_CHECK=$($SHELL_RUN "$IMAGE" -c 'echo $PATH' 2>/dev/null || echo "")
 if echo "$PATH_CHECK" | grep -q "/sandbox/.local/bin"; then
   pass "PATH includes /sandbox/.local/bin"
 else
@@ -123,7 +124,7 @@ fi
 section "AMI Binary"
 
 # Test: ami is on PATH
-AMI_WHICH=$($RUN "$IMAGE" bash -c 'which ami 2>/dev/null || echo missing' 2>/dev/null || echo "missing")
+AMI_WHICH=$($SHELL_RUN "$IMAGE" -c 'which ami 2>/dev/null || echo missing' 2>/dev/null || echo "missing")
 if [ "$AMI_WHICH" != "missing" ]; then
   pass "ami binary on PATH ($AMI_WHICH)"
 else
@@ -131,7 +132,7 @@ else
 fi
 
 # Test: --version works
-VERSION=$($RUN "$IMAGE" bash -c 'ami --version 2>&1' 2>/dev/null || echo "")
+VERSION=$($SHELL_RUN "$IMAGE" -c 'ami --version 2>&1' 2>/dev/null || echo "")
 if echo "$VERSION" | grep -qE "v[0-9]+\.[0-9]+\.[0-9]+"; then
   pass "ami --version works ($VERSION)"
 else
@@ -139,7 +140,7 @@ else
 fi
 
 # Test: --help works
-HELP=$($RUN "$IMAGE" bash -c 'ami --help 2>&1' 2>/dev/null || echo "")
+HELP=$($SHELL_RUN "$IMAGE" -c 'ami --help 2>&1' 2>/dev/null || echo "")
 if echo "$HELP" | grep -qi "usage\|options\|help"; then
   pass "ami --help works"
 else
@@ -152,7 +153,7 @@ fi
 section "Entrypoint"
 
 # Test: entrypoint exists and is executable
-ENTRY_CHECK=$($RUN --user root "$IMAGE" bash -c '[ -x /usr/local/bin/entrypoint.sh ] && echo ok || echo missing' 2>/dev/null || echo "")
+ENTRY_CHECK=$($CONTAINER_ENGINE run --rm --entrypoint bash --user root "$IMAGE" -c '[ -x /usr/local/bin/entrypoint.sh ] && echo ok || echo missing' 2>/dev/null || echo "")
 if [ "$ENTRY_CHECK" = "ok" ]; then
   pass "entrypoint.sh exists and is executable"
 else
@@ -160,7 +161,7 @@ else
 fi
 
 # Test: policy.yaml exists
-POLICY_CHECK=$($RUN "$IMAGE" bash -c '[ -f /etc/openshell/policy.yaml ] && echo ok || echo missing' 2>/dev/null || echo "")
+POLICY_CHECK=$($SHELL_RUN "$IMAGE" -c '[ -f /etc/openshell/policy.yaml ] && echo ok || echo missing' 2>/dev/null || echo "")
 if [ "$POLICY_CHECK" = "ok" ]; then
   pass "policy.yaml exists at /etc/openshell/"
 else
@@ -190,9 +191,9 @@ section "Startup Probe"
 
 # Test: /tmp/agent-ready is created by entrypoint
 # We need to run with a prompt that will fail fast (no API key) but still touch the probe
-PROBE_CHECK=$($RUN \
+PROBE_CHECK=$($CONTAINER_ENGINE run --rm --entrypoint bash \
   -e AGENT_PROMPT="test" \
-  "$IMAGE" bash -c '
+  "$IMAGE" -c '
     /usr/local/bin/entrypoint.sh ami --help >/dev/null 2>&1 &
     sleep 2
     [ -f /tmp/agent-ready ] && echo ok || echo missing
@@ -276,7 +277,7 @@ fi
 section "Security Isolation"
 
 # Test: cannot write to /usr
-USR_WRITE=$($RUN "$IMAGE" bash -c 'touch /usr/test 2>/dev/null && echo writable || echo blocked' 2>/dev/null || echo "blocked")
+USR_WRITE=$($SHELL_RUN "$IMAGE" -c 'touch /usr/test 2>/dev/null && echo writable || echo blocked' 2>/dev/null || echo "blocked")
 if [ "$USR_WRITE" = "blocked" ]; then
   pass "cannot write to /usr"
 else
@@ -284,7 +285,7 @@ else
 fi
 
 # Test: cannot write to /var
-VAR_WRITE=$($RUN "$IMAGE" bash -c 'touch /var/test 2>/dev/null && echo writable || echo blocked' 2>/dev/null || echo "blocked")
+VAR_WRITE=$($SHELL_RUN "$IMAGE" -c 'touch /var/test 2>/dev/null && echo writable || echo blocked' 2>/dev/null || echo "blocked")
 if [ "$VAR_WRITE" = "blocked" ]; then
   pass "cannot write to /var"
 else
@@ -292,7 +293,7 @@ else
 fi
 
 # Test: not running as root
-ID_CHECK=$($RUN "$IMAGE" bash -c 'id -u' 2>/dev/null || echo "0")
+ID_CHECK=$($SHELL_RUN "$IMAGE" -c 'id -u' 2>/dev/null || echo "0")
 if [ "$ID_CHECK" != "0" ]; then
   pass "not running as root (uid=$ID_CHECK)"
 else
@@ -300,7 +301,7 @@ else
 fi
 
 # Test: no credentials baked into image
-CRED_SCAN=$($RUN "$IMAGE" bash -c '
+CRED_SCAN=$($SHELL_RUN "$IMAGE" -c '
   found=0
   for pattern in "sk-ant-" "sk-" "AIzaSy" "gsk_" "ANTHROPIC_API_KEY=" "OPENAI_API_KEY="; do
     if grep -rq "$pattern" /sandbox/.config/ /sandbox/.superinference/ 2>/dev/null; then
@@ -329,7 +330,7 @@ fi
 section "Container Tools"
 
 for tool in git curl jq; do
-  TOOL_CHECK=$($RUN "$IMAGE" bash -c "which $tool 2>/dev/null && echo ok || echo missing" 2>/dev/null || echo "missing")
+  TOOL_CHECK=$($SHELL_RUN "$IMAGE" -c "which $tool 2>/dev/null && echo ok || echo missing" 2>/dev/null || echo "missing")
   if echo "$TOOL_CHECK" | grep -q "ok"; then
     pass "$tool available"
   else
