@@ -24,9 +24,9 @@ jobs:
       - name: Fetch Containerfile and supporting files
         run: |
           mkdir -p build
-          curl -fsSL https://raw.githubusercontent.com/superinference/site/main/core/Dockerfile -o build/Dockerfile
-          curl -fsSL https://raw.githubusercontent.com/superinference/site/main/core/entrypoint.sh -o build/entrypoint.sh
-          curl -fsSL https://raw.githubusercontent.com/superinference/site/main/core/policy.yaml -o build/policy.yaml
+          curl -fsSL https://raw.githubusercontent.com/superinference/ami/main/Dockerfile -o build/Dockerfile
+          curl -fsSL https://raw.githubusercontent.com/superinference/ami/main/entrypoint.sh -o build/entrypoint.sh
+          curl -fsSL https://raw.githubusercontent.com/superinference/ami/main/policy.yaml -o build/policy.yaml
           chmod +x build/entrypoint.sh
 
       - name: Build openshell-ami image
