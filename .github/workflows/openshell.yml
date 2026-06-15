@@ -1,0 +1,43 @@
+name: OpenShell Container Tests
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '42 5 * * 1'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write frito config
+        run: |
+          mkdir -p ~/.ami
+          echo '${{ secrets.AMI_FRITO }}' > ~/.ami/frito.json
+          chmod 600 ~/.ami/frito.json
+
+      - name: Install dependencies
+        run: sudo apt-get install -y jq
+
+      - name: Fetch Containerfile and supporting files
+        run: |
+          mkdir -p build
+          curl -fsSL https://raw.githubusercontent.com/superinference/site/main/core/Dockerfile -o build/Dockerfile
+          curl -fsSL https://raw.githubusercontent.com/superinference/site/main/core/entrypoint.sh -o build/entrypoint.sh
+          curl -fsSL https://raw.githubusercontent.com/superinference/site/main/core/policy.yaml -o build/policy.yaml
+          chmod +x build/entrypoint.sh
+
+      - name: Build openshell-ami image
+        run: |
+          docker build -t openshell-ami:test build/
+          echo "Image built:"
+          docker image ls openshell-ami:test
+
+      - name: "Suite: OpenShell Container Tests"
+        run: |
+          export OPENSHELL_IMAGE=openshell-ami:test
+          export CONTAINER_ENGINE=docker
+          bash tests/openshell.sh
