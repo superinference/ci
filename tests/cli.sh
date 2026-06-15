@@ -17,7 +17,7 @@ echo ""
 
 AMI_TIMEOUT=45
 
-AMI_BIN=$(which ami 2>/dev/null || echo "")
+AMI_BIN=$(command -v ami 2>/dev/null || echo "")
 if [ -z "$AMI_BIN" ]; then
   fail "ami binary found" "not in PATH"
   summary
@@ -193,8 +193,11 @@ fi
 # ═══════════════════════════════════════════════════════════════════
 section "Error: No API Key"
 
-NO_KEY_OUT=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" NODE_NO_WARNINGS=1 \
+# Use a temp HOME so ~/.ami/frito.json doesn't let AMI bypass the no-key check
+NO_KEY_HOME=$(mktemp -d)
+NO_KEY_OUT=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$NO_KEY_HOME" TERM="${TERM:-dumb}" NODE_NO_WARNINGS=1 \
   ami --prompt "hello" 2>&1 || true)
+rm -rf "$NO_KEY_HOME"
 
 echo "$NO_KEY_OUT" | grep -qi "api.key\|required\|error" && pass "no-key: error message" || skip "no-key: error message" "${NO_KEY_OUT:0:60}"
 echo "$NO_KEY_OUT" | grep -q "at Object\.\|TypeError\|ReferenceError" && fail "no-key: no stack trace" || pass "no-key: no stack trace"

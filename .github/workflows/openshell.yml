@@ -4,22 +4,17 @@ on:
   push:
     paths:
       - '.github/workflows/openshell.yml'
-      - 'tests/openshell.sh'
-      - 'tests/helpers.sh'
+      - 'tests/**'
   workflow_dispatch:
   schedule:
     - cron: '42 5 * * 1'
 
 jobs:
-  test:
+  build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: sudo apt-get install -y jq
 
       - name: Fetch Containerfile and supporting files
         run: |
@@ -35,10 +30,224 @@ jobs:
           echo "Image built:"
           docker image ls openshell-ami:test
 
-      - name: "Suite: OpenShell Container Tests"
+      - name: Save image as artifact
+        run: docker save openshell-ami:test | gzip > /tmp/openshell-ami.tar.gz
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openshell-ami-image
+          path: /tmp/openshell-ami.tar.gz
+          retention-days: 1
+
+  suite-1:
+    runs-on: ubuntu-latest
+    needs: build
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: openshell-ami-image
+          path: /tmp
+      - name: Load image
+        run: docker load < /tmp/openshell-ami.tar.gz
+      - name: Install dependencies
+        run: sudo apt-get install -y jq
+      - name: "OpenShell Container Tests"
         env:
           AI_API_KEY: ${{ secrets.AI_API_KEY }}
         run: |
           export OPENSHELL_IMAGE=openshell-ami:test
           export CONTAINER_ENGINE=docker
           bash tests/openshell.sh
+
+  suite-2:
+    runs-on: ubuntu-latest
+    needs: build
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: openshell-ami-image
+          path: /tmp
+      - name: Load image
+        run: docker load < /tmp/openshell-ami.tar.gz
+      - name: Write frito config
+        run: |
+          mkdir -p /tmp/ami-config
+          echo '${{ secrets.AMI_FRITO }}' > /tmp/ami-config/frito.json
+          chmod 644 /tmp/ami-config/frito.json
+      - name: "Config Validation (in container)"
+        run: |
+          docker run --rm \
+            --tmpfs /dev/shm:rw,nosuid,nodev,exec,size=2g \
+            --entrypoint bash \
+            -v "$PWD/tests:/tests:ro" \
+            -v "/tmp/ami-config/frito.json:/tmp/frito.json:ro" \
+            -e "FRITO_CONFIG=/tmp/frito.json" \
+            openshell-ami:test \
+            -c 'bash /tests/config.sh'
+
+  suite-3:
+    runs-on: ubuntu-latest
+    needs: build
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: openshell-ami-image
+          path: /tmp
+      - name: Load image
+        run: docker load < /tmp/openshell-ami.tar.gz
+      - name: Write frito config
+        run: |
+          mkdir -p /tmp/ami-config
+          echo '${{ secrets.AMI_FRITO }}' > /tmp/ami-config/frito.json
+          chmod 644 /tmp/ami-config/frito.json
+      - name: "CLI Flags (in container)"
+        run: |
+          docker run --rm \
+            --tmpfs /dev/shm:rw,nosuid,nodev,exec,size=2g \
+            --entrypoint bash \
+            -v "$PWD/tests:/tests:ro" \
+            -v "/tmp/ami-config/frito.json:/tmp/frito.json:ro" \
+            -e "FRITO_CONFIG=/tmp/frito.json" \
+            openshell-ami:test \
+            -c 'export PATH="/sandbox/.local/bin:$PATH" && bash /tests/cli.sh'
+
+  suite-4:
+    runs-on: ubuntu-latest
+    needs: build
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: openshell-ami-image
+          path: /tmp
+      - name: Load image
+        run: docker load < /tmp/openshell-ami.tar.gz
+      - name: Write frito config
+        run: |
+          mkdir -p /tmp/ami-config
+          echo '${{ secrets.AMI_FRITO }}' > /tmp/ami-config/frito.json
+          chmod 644 /tmp/ami-config/frito.json
+      - name: "Security & Integrity (in container)"
+        run: |
+          docker run --rm \
+            --tmpfs /dev/shm:rw,nosuid,nodev,exec,size=2g \
+            --entrypoint bash \
+            -v "$PWD/tests:/tests:ro" \
+            -v "/tmp/ami-config/frito.json:/tmp/frito.json:ro" \
+            -e "FRITO_CONFIG=/tmp/frito.json" \
+            -e "CI_DIR=/tests" \
+            openshell-ami:test \
+            -c 'export PATH="/sandbox/.local/bin:$PATH" && bash /tests/security.sh'
+
+  suite-5:
+    runs-on: ubuntu-latest
+    needs: build
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: openshell-ami-image
+          path: /tmp
+      - name: Load image
+        run: docker load < /tmp/openshell-ami.tar.gz
+      - name: Write frito config
+        run: |
+          mkdir -p /tmp/ami-config
+          echo '${{ secrets.AMI_FRITO }}' > /tmp/ami-config/frito.json
+          chmod 644 /tmp/ami-config/frito.json
+      - name: "Provider Tests (in container)"
+        env:
+          AI_API_KEY: ${{ secrets.AI_API_KEY }}
+        run: |
+          docker run --rm \
+            --tmpfs /dev/shm:rw,nosuid,nodev,exec,size=2g \
+            --entrypoint bash \
+            -v "$PWD/tests:/tests:ro" \
+            -v "/tmp/ami-config/frito.json:/tmp/frito.json:ro" \
+            -e "FRITO_CONFIG=/tmp/frito.json" \
+            -e "AI_API_KEY=$AI_API_KEY" \
+            openshell-ami:test \
+            -c 'export PATH="/sandbox/.local/bin:$PATH" && bash /tests/providers.sh'
+
+  publish:
+    runs-on: ubuntu-latest
+    needs: [suite-1, suite-2, suite-3, suite-4, suite-5]
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: openshell-ami-image
+          path: /tmp
+
+      - name: Load image
+        run: docker load < /tmp/openshell-ami.tar.gz
+
+      - name: Verify no API keys in image
+        run: |
+          echo "Checking image env for leaked secrets..."
+          ENV_DUMP=$(docker image inspect openshell-ami:test --format '{{json .Config.Env}}')
+          for pattern in sk-ant- sk- AIzaSy gsk_ API_KEY= FRITO; do
+            if echo "$ENV_DUMP" | grep -qi "$pattern"; then
+              echo "FATAL: found '$pattern' in image env: $ENV_DUMP"
+              exit 1
+            fi
+          done
+          echo "  OK: no secrets in image env"
+
+          echo "Checking image history for leaked secrets..."
+          HISTORY=$(docker history openshell-ami:test --no-trunc --format '{{.CreatedBy}}')
+          for pattern in sk-ant- AIzaSy gsk_ API_KEY=sk; do
+            if echo "$HISTORY" | grep -qi "$pattern"; then
+              echo "FATAL: found '$pattern' in image history"
+              exit 1
+            fi
+          done
+          echo "  OK: no secrets in image history"
+
+          echo "Checking filesystem for credential files..."
+          CRED_CHECK=$(docker run --rm --entrypoint bash openshell-ami:test -c '
+            found=0
+            for pattern in "sk-ant-" "sk-" "AIzaSy" "gsk_" "ANTHROPIC_API_KEY=" "OPENAI_API_KEY="; do
+              if grep -rq "$pattern" /sandbox/.config/ /sandbox/.superinference/ 2>/dev/null; then
+                found=1
+              fi
+            done
+            for f in .env credentials.json frito.json secrets.json token.json; do
+              if find /sandbox -name "$f" 2>/dev/null | grep -q .; then
+                found=1
+              fi
+            done
+            echo $found
+          ')
+          if [ "$CRED_CHECK" != "0" ]; then
+            echo "FATAL: credential files or API keys found in image filesystem"
+            exit 1
+          fi
+          echo "  OK: no credentials in image filesystem"
+          echo "Image security scan passed."
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push to GHCR
+        run: |
+          docker tag openshell-ami:test ghcr.io/superinference/openshell-ami:latest
+          docker tag openshell-ami:test ghcr.io/superinference/openshell-ami:${{ github.sha }}
+          docker push ghcr.io/superinference/openshell-ami:latest
+          docker push ghcr.io/superinference/openshell-ami:${{ github.sha }}

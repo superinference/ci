@@ -10,7 +10,7 @@ echo "$(bold 'Security & Integrity Tests')"
 echo "$(dim "Date: $(date -u +%Y-%m-%dT%H:%M:%SZ)")"
 echo ""
 
-CI_DIR=$(dirname "$SCRIPT_DIR")
+CI_DIR="${CI_DIR:-$(dirname "$SCRIPT_DIR")}"
 
 # ═══════════════════════════════════════════════════════════════════
 # SECTION 1: No Source Code Leakage
@@ -180,7 +180,7 @@ fi
 # ═══════════════════════════════════════════════════════════════════
 section "Binary Integrity"
 
-AMI_BIN=$(which ami 2>/dev/null || echo "")
+AMI_BIN=$(command -v ami 2>/dev/null || echo "")
 if [ -n "$AMI_BIN" ]; then
   # Binary is not a shell script (should be compiled)
   FIRST_BYTES=$(head -c 2 "$AMI_BIN" 2>/dev/null | xxd -p 2>/dev/null || echo "")

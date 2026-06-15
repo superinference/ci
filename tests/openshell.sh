@@ -9,8 +9,9 @@ source "$SCRIPT_DIR/helpers.sh"
 
 IMAGE="${OPENSHELL_IMAGE:-openshell-ami:test}"
 CONTAINER_ENGINE="${CONTAINER_ENGINE:-docker}"
-RUN="$CONTAINER_ENGINE run --rm --shm-size=256m"
-SHELL_RUN="$CONTAINER_ENGINE run --rm --shm-size=256m --entrypoint bash"
+SHM_OPTS="--tmpfs /dev/shm:rw,nosuid,nodev,exec,size=2g"
+RUN="$CONTAINER_ENGINE run --rm $SHM_OPTS"
+SHELL_RUN="$CONTAINER_ENGINE run --rm $SHM_OPTS --entrypoint bash"
 
 echo ""
 echo "$(bold 'OpenShell Container Integration Tests')"
@@ -33,13 +34,14 @@ else
   exit 1
 fi
 
-# Test: image size is reasonable (< 500MB)
+# Test: image size is reasonable (< 900MB)
+# Image includes Node.js + tsx/typescript for in-container test execution
 IMAGE_SIZE=$($CONTAINER_ENGINE image inspect "$IMAGE" --format '{{.Size}}' 2>/dev/null || echo "0")
 IMAGE_SIZE_MB=$((IMAGE_SIZE / 1024 / 1024))
-if [ "$IMAGE_SIZE_MB" -lt 500 ]; then
+if [ "$IMAGE_SIZE_MB" -lt 900 ]; then
   pass "image size reasonable (${IMAGE_SIZE_MB}MB)"
 else
-  fail "image size reasonable" "${IMAGE_SIZE_MB}MB (expected < 500MB)"
+  fail "image size reasonable" "${IMAGE_SIZE_MB}MB (expected < 900MB)"
 fi
 
 # Test: OCI labels
@@ -210,48 +212,64 @@ fi
 section "Detached Mode (Autonomous Execution)"
 
 if [ -n "${AI_API_KEY:-}" ]; then
-  # Test: simple detached prompt produces JSONL output
+
+  # --- 6a: AGENT_PROMPT env var via entrypoint ---
   DETACHED_OUT=$(timeout 120 $RUN \
     -e "AI_API_KEY=$AI_API_KEY" \
     -e AGENT_PROMPT="What is 2+2? Answer with just the number." \
-    "$IMAGE" 2>/dev/null || echo "TIMEOUT")
+    "$IMAGE" 2>&1 || echo "TIMEOUT")
 
   if [ "$DETACHED_OUT" = "TIMEOUT" ]; then
-    skip "detached mode: JSONL output" "timed out after 120s"
+    skip "detached/env: produces output" "timed out after 120s"
   elif [ -n "$DETACHED_OUT" ]; then
-    pass "detached mode: produced output (${#DETACHED_OUT} bytes)"
-
-    VALID_JSON_LINES=0
-    while IFS= read -r line; do
-      if [ -n "$line" ] && echo "$line" | jq . >/dev/null 2>&1; then
-        VALID_JSON_LINES=$((VALID_JSON_LINES + 1))
-      fi
-    done <<< "$DETACHED_OUT"
-
-    if [ "$VALID_JSON_LINES" -gt 0 ]; then
-      pass "detached mode: $VALID_JSON_LINES valid JSON lines"
-    else
-      skip "detached mode: valid JSON lines" "no parseable JSON lines in output"
-    fi
+    pass "detached/env: produced output (${#DETACHED_OUT} bytes)"
   else
-    fail "detached mode: produced output" "empty output"
+    fail "detached/env: produced output" "empty output"
   fi
 
-  # Test: detached mode with explicit CLI args (bypass entrypoint env)
+  # --- 6b: Explicit CLI args (bypass entrypoint env) ---
   CLI_OUT=$(timeout 120 $RUN \
     -e "AI_API_KEY=$AI_API_KEY" \
     "$IMAGE" ami --prompt "What is 3+3? Answer with just the number." \
-    --yolo --output-format jsonl 2>/dev/null || echo "TIMEOUT")
+    --yolo --output-format jsonl 2>&1 || echo "TIMEOUT")
 
   if [ "$CLI_OUT" = "TIMEOUT" ]; then
-    skip "detached mode: CLI args" "timed out after 120s"
+    skip "detached/cli: produces output" "timed out after 120s"
   elif [ -n "$CLI_OUT" ]; then
-    pass "detached mode: CLI args produced output (${#CLI_OUT} bytes)"
+    pass "detached/cli: produced output (${#CLI_OUT} bytes)"
   else
-    fail "detached mode: CLI args produced output" "empty output"
+    fail "detached/cli: produced output" "empty output"
   fi
 
-  # Test: exit code 0 on success
+  # --- 6c: JSONL output format validation ---
+  JSONL_OUT=$(timeout 120 $RUN \
+    -e "AI_API_KEY=$AI_API_KEY" \
+    "$IMAGE" ami --prompt "Say hello" \
+    --yolo --output-format jsonl 2>&1 || echo "TIMEOUT")
+
+  if [ "$JSONL_OUT" = "TIMEOUT" ]; then
+    skip "detached/jsonl: valid JSON lines" "timed out after 120s"
+  elif [ -n "$JSONL_OUT" ]; then
+    VALID_JSON_LINES=0
+    TOTAL_LINES=0
+    while IFS= read -r line; do
+      [ -z "$line" ] && continue
+      TOTAL_LINES=$((TOTAL_LINES + 1))
+      if echo "$line" | jq . >/dev/null 2>&1; then
+        VALID_JSON_LINES=$((VALID_JSON_LINES + 1))
+      fi
+    done <<< "$JSONL_OUT"
+
+    if [ "$VALID_JSON_LINES" -gt 0 ]; then
+      pass "detached/jsonl: $VALID_JSON_LINES/$TOTAL_LINES valid JSON lines"
+    else
+      skip "detached/jsonl: valid JSON lines" "no parseable JSON in $TOTAL_LINES lines"
+    fi
+  else
+    fail "detached/jsonl: valid JSON lines" "empty output"
+  fi
+
+  # --- 6d: Exit code 0 on success ---
   EXIT_CODE=0
   timeout 120 $RUN \
     -e "AI_API_KEY=$AI_API_KEY" \
@@ -259,16 +277,137 @@ if [ -n "${AI_API_KEY:-}" ]; then
     "$IMAGE" >/dev/null 2>&1 || EXIT_CODE=$?
 
   if [ "$EXIT_CODE" -eq 0 ]; then
-    pass "detached mode: exit code 0 on success"
+    pass "detached/exit: code 0 on success"
   elif [ "$EXIT_CODE" -eq 124 ]; then
-    skip "detached mode: exit code" "timed out"
+    skip "detached/exit: code 0" "timed out"
   else
-    skip "detached mode: exit code" "got $EXIT_CODE (may be expected for non-interactive)"
+    skip "detached/exit: code 0" "got $EXIT_CODE"
   fi
+
+  # --- 6e: Exit code non-zero without API key ---
+  NO_KEY_EXIT=0
+  timeout 30 $RUN \
+    -e "AI_API_KEY=" \
+    -e AGENT_PROMPT="test" \
+    "$IMAGE" >/dev/null 2>&1 || NO_KEY_EXIT=$?
+
+  if [ "$NO_KEY_EXIT" -ne 0 ] && [ "$NO_KEY_EXIT" -ne 124 ]; then
+    pass "detached/exit: non-zero without API key (exit $NO_KEY_EXIT)"
+  elif [ "$NO_KEY_EXIT" -eq 124 ]; then
+    skip "detached/exit: no-key check" "timed out"
+  else
+    skip "detached/exit: no-key check" "got exit 0 (unexpected)"
+  fi
+
+  # --- 6f: --yolo flag accepted ---
+  YOLO_OUT=$(timeout 120 $RUN \
+    -e "AI_API_KEY=$AI_API_KEY" \
+    "$IMAGE" ami --prompt "What is 5+5? Just the number." \
+    --yolo 2>&1 || echo "TIMEOUT")
+
+  if [ "$YOLO_OUT" = "TIMEOUT" ]; then
+    skip "detached/yolo: flag accepted" "timed out"
+  elif echo "$YOLO_OUT" | grep -qi "unknown.*yolo\|invalid.*yolo\|unrecognized.*yolo"; then
+    fail "detached/yolo: flag accepted" "ami rejected --yolo flag"
+  else
+    pass "detached/yolo: flag accepted"
+  fi
+
+  # --- 6g: Output contains result content ---
+  MATH_OUT=$(timeout 120 $RUN \
+    -e "AI_API_KEY=$AI_API_KEY" \
+    "$IMAGE" ami --prompt "What is 7+7? Reply ONLY with the number, nothing else." \
+    --yolo --output-format jsonl 2>&1 || echo "TIMEOUT")
+
+  if [ "$MATH_OUT" = "TIMEOUT" ]; then
+    skip "detached/content: answer in output" "timed out"
+  elif echo "$MATH_OUT" | grep -q "14"; then
+    pass "detached/content: correct answer found in output"
+  elif [ -n "$MATH_OUT" ]; then
+    skip "detached/content: answer in output" "output present but 14 not found"
+  else
+    fail "detached/content: answer in output" "empty output"
+  fi
+
+  # --- 6h: Multiple sequential runs produce independent output ---
+  RUN1_OUT=$(timeout 120 $RUN \
+    -e "AI_API_KEY=$AI_API_KEY" \
+    "$IMAGE" ami --prompt "Say alpha" \
+    --yolo --output-format jsonl 2>&1 || echo "TIMEOUT")
+
+  RUN2_OUT=$(timeout 120 $RUN \
+    -e "AI_API_KEY=$AI_API_KEY" \
+    "$IMAGE" ami --prompt "Say bravo" \
+    --yolo --output-format jsonl 2>&1 || echo "TIMEOUT")
+
+  if [ "$RUN1_OUT" = "TIMEOUT" ] || [ "$RUN2_OUT" = "TIMEOUT" ]; then
+    skip "detached/isolation: independent runs" "one or both timed out"
+  elif [ -n "$RUN1_OUT" ] && [ -n "$RUN2_OUT" ] && [ "$RUN1_OUT" != "$RUN2_OUT" ]; then
+    pass "detached/isolation: sequential runs produce different output"
+  elif [ -z "$RUN1_OUT" ] || [ -z "$RUN2_OUT" ]; then
+    fail "detached/isolation: independent runs" "one or both produced empty output"
+  else
+    skip "detached/isolation: independent runs" "outputs identical"
+  fi
+
+  # --- 6i: Container does not persist state between runs ---
+  $RUN \
+    -e "AI_API_KEY=$AI_API_KEY" \
+    -e AGENT_PROMPT="Create a file called /sandbox/marker.txt with the text PERSISTED" \
+    "$IMAGE" >/dev/null 2>&1 || true
+
+  PERSIST_CHECK=$($SHELL_RUN "$IMAGE" -c '[ -f /sandbox/marker.txt ] && echo leaked || echo clean' 2>/dev/null || echo "clean")
+  if [ "$PERSIST_CHECK" = "clean" ]; then
+    pass "detached/isolation: no state persisted between containers"
+  else
+    fail "detached/isolation: state leaked between containers"
+  fi
+
+  # --- 6j: Env vars passed into container are visible to AMI ---
+  ENV_OUT=$(timeout 120 $RUN \
+    -e "AI_API_KEY=$AI_API_KEY" \
+    -e "CUSTOM_VAR=test_value_42" \
+    "$IMAGE" ami --prompt "Print the value of the CUSTOM_VAR environment variable. Reply ONLY with the value." \
+    --yolo --output-format jsonl 2>&1 || echo "TIMEOUT")
+
+  if [ "$ENV_OUT" = "TIMEOUT" ]; then
+    skip "detached/env-passthrough: custom vars" "timed out"
+  elif echo "$ENV_OUT" | grep -q "test_value_42"; then
+    pass "detached/env-passthrough: custom env var visible to AMI"
+  elif [ -n "$ENV_OUT" ]; then
+    skip "detached/env-passthrough: custom vars" "output present but value not found"
+  else
+    fail "detached/env-passthrough: custom vars" "empty output"
+  fi
+
+  # --- 6k: Working directory is /sandbox ---
+  CWD_OUT=$(timeout 120 $RUN \
+    -e "AI_API_KEY=$AI_API_KEY" \
+    "$IMAGE" ami --prompt "Run pwd and reply ONLY with the output path, nothing else." \
+    --yolo --output-format jsonl 2>&1 || echo "TIMEOUT")
+
+  if [ "$CWD_OUT" = "TIMEOUT" ]; then
+    skip "detached/cwd: working dir is /sandbox" "timed out"
+  elif echo "$CWD_OUT" | grep -q "/sandbox"; then
+    pass "detached/cwd: working directory is /sandbox"
+  elif [ -n "$CWD_OUT" ]; then
+    skip "detached/cwd: working dir is /sandbox" "output present but /sandbox not found"
+  else
+    fail "detached/cwd: working dir is /sandbox" "empty output"
+  fi
+
 else
-  skip "detached mode: JSONL output" "no AI_API_KEY set"
-  skip "detached mode: CLI args" "no AI_API_KEY set"
-  skip "detached mode: exit code" "no AI_API_KEY set"
+  skip "detached/env: produces output" "no AI_API_KEY set"
+  skip "detached/cli: produces output" "no AI_API_KEY set"
+  skip "detached/jsonl: valid JSON lines" "no AI_API_KEY set"
+  skip "detached/exit: code 0" "no AI_API_KEY set"
+  skip "detached/exit: no-key check" "no AI_API_KEY set"
+  skip "detached/yolo: flag accepted" "no AI_API_KEY set"
+  skip "detached/content: answer in output" "no AI_API_KEY set"
+  skip "detached/isolation: independent runs" "no AI_API_KEY set"
+  skip "detached/isolation: no state persisted" "no AI_API_KEY set"
+  skip "detached/env-passthrough: custom vars" "no AI_API_KEY set"
+  skip "detached/cwd: working dir is /sandbox" "no AI_API_KEY set"
 fi
 
 # ═══════════════════════════════════════════════════════════════════

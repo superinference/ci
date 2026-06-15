@@ -294,8 +294,8 @@ assert_http_ok() {
     fail "$name" "connection failed (HTTP 000)"
   elif [ "$code" -ge 200 ] && [ "$code" -lt 300 ]; then
     pass "$name"
-  elif [ "$code" = "429" ]; then
-    skip "$name" "rate limited (429)"
+  elif [ "$code" = "429" ] || [ "$code" = "402" ]; then
+    skip "$name" "rate limited/billing ($code)"
   else
     fail "$name" "HTTP $code"
   fi
