@@ -9,8 +9,8 @@ source "$SCRIPT_DIR/helpers.sh"
 
 IMAGE="${OPENSHELL_IMAGE:-openshell-ami:test}"
 CONTAINER_ENGINE="${CONTAINER_ENGINE:-docker}"
-RUN="$CONTAINER_ENGINE run --rm"
-SHELL_RUN="$CONTAINER_ENGINE run --rm --entrypoint bash"
+RUN="$CONTAINER_ENGINE run --rm --shm-size=256m"
+SHELL_RUN="$CONTAINER_ENGINE run --rm --shm-size=256m --entrypoint bash"
 
 echo ""
 echo "$(bold 'OpenShell Container Integration Tests')"
@@ -124,7 +124,7 @@ fi
 section "AMI Binary"
 
 # Test: ami is on PATH
-AMI_WHICH=$($SHELL_RUN "$IMAGE" -c 'which ami 2>/dev/null || echo missing' 2>/dev/null || echo "missing")
+AMI_WHICH=$($SHELL_RUN "$IMAGE" -c 'command -v ami 2>/dev/null || echo missing' 2>/dev/null || echo "missing")
 if [ "$AMI_WHICH" != "missing" ]; then
   pass "ami binary on PATH ($AMI_WHICH)"
 else
@@ -330,7 +330,7 @@ fi
 section "Container Tools"
 
 for tool in git curl jq; do
-  TOOL_CHECK=$($SHELL_RUN "$IMAGE" -c "which $tool 2>/dev/null && echo ok || echo missing" 2>/dev/null || echo "missing")
+  TOOL_CHECK=$($SHELL_RUN "$IMAGE" -c "command -v $tool >/dev/null 2>&1 && echo ok || echo missing" 2>/dev/null || echo "missing")
   if echo "$TOOL_CHECK" | grep -q "ok"; then
     pass "$tool available"
   else
