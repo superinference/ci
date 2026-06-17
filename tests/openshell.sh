@@ -34,14 +34,14 @@ else
   exit 1
 fi
 
-# Test: image size is reasonable (< 900MB)
-# Image includes Node.js + tsx/typescript for in-container test execution
+# Test: image size is reasonable (< 4000MB)
+# Image includes AMI runtime, Node.js + tsx/typescript for in-container test execution
 IMAGE_SIZE=$($CONTAINER_ENGINE image inspect "$IMAGE" --format '{{.Size}}' 2>/dev/null || echo "0")
 IMAGE_SIZE_MB=$((IMAGE_SIZE / 1024 / 1024))
-if [ "$IMAGE_SIZE_MB" -lt 900 ]; then
+if [ "$IMAGE_SIZE_MB" -lt 4000 ]; then
   pass "image size reasonable (${IMAGE_SIZE_MB}MB)"
 else
-  fail "image size reasonable" "${IMAGE_SIZE_MB}MB (expected < 900MB)"
+  fail "image size reasonable" "${IMAGE_SIZE_MB}MB (expected < 4000MB)"
 fi
 
 # Test: OCI labels
