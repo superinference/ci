@@ -873,13 +873,11 @@ run_cross_provider() {
     echo "$hlp" | grep -q "$var" && pass "cross: --help has $var" || fail "cross: --help has $var"
   done
 
-  # No source code leakage
+  # No source code leakage in sandbox home
   echo "  $(dim '▸ Source code leakage check')"
-  local ci_dir
-  ci_dir=$(dirname "$SCRIPT_DIR")
   for ext in ts tsx js jsx; do
     local found
-    found=$(find "$ci_dir" -name "*.$ext" -not -path "*/node_modules/*" -not -path "*/.git/*" 2>/dev/null | head -1 || true)
+    found=$(find /sandbox -name "*.$ext" -not -path "*/node_modules/*" -not -path "*/.git/*" 2>/dev/null | head -1 || true)
     [ -z "$found" ] && pass "cross: no .$ext files" || fail "cross: no .$ext files" "$found"
   done
 }
