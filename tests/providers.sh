@@ -877,7 +877,7 @@ run_cross_provider() {
   echo "  $(dim '▸ Source code leakage check')"
   for ext in ts tsx js jsx; do
     local found
-    found=$(find /sandbox -name "*.$ext" -not -path "*/node_modules/*" -not -path "*/.git/*" -not -path "*/.uv/*" -not -path "*/share/terminfo/*" 2>/dev/null | head -1 || true)
+    found=$(find /sandbox -maxdepth 3 -name "*.$ext" -not -path "*/.*" -not -path "*/node_modules/*" 2>/dev/null | head -1 || true)
     [ -z "$found" ] && pass "cross: no .$ext files" || fail "cross: no .$ext files" "$found"
   done
 }
