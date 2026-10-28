@@ -407,3 +407,90 @@ pwait() {
     rate_limit_wait
   fi
 }
+
+# ─── ANSI / expect helpers ──────────────────────────────────────
+
+strip_ansi() {
+  sed 's/\x1b\[[0-9;?]*[a-zA-Z]//g; s/\x1b(B//g; s/\x1b\]0;[^\x07]*\x07//g; s/\r//g' \
+    | tr -s '\n'
+}
+
+# Run a single slash command in the interactive TUI via expect.
+# Usage: ami_slash "/help" [ENV_VAR=value ...]
+# Returns: ANSI-stripped output from the TUI session.
+ami_slash() {
+  local cmd="$1"; shift
+  local env_exports=""
+  for pair in "$@"; do
+    env_exports="$env_exports $pair"
+  done
+  timeout 45 expect -c "
+    set timeout 30
+    log_user 1
+    spawn env -i PATH=$::env(PATH) HOME=$::env(HOME) TERM=dumb NODE_NO_WARNINGS=1 $env_exports ami
+    sleep 3
+    send \"$cmd\r\"
+    sleep 3
+    send \"/quit\r\"
+    expect eof
+  " 2>&1 | strip_ansi || true
+}
+
+# Run multiple slash commands in sequence.
+# Usage: ami_slash_multi "ENV_VAR=val ..." -- "/cmd1" "/cmd2" ...
+ami_slash_multi() {
+  local env_exports=""
+  local commands=()
+  local sep=false
+  for arg in "$@"; do
+    if [ "$arg" = "--" ]; then sep=true; continue; fi
+    if $sep; then commands+=("$arg"); else env_exports="$env_exports $arg"; fi
+  done
+  local send_script=""
+  for cmd in "${commands[@]}"; do
+    send_script="${send_script}
+    send \"$cmd\r\"
+    sleep 3"
+  done
+  timeout 90 expect -c "
+    set timeout 60
+    log_user 1
+    spawn env -i PATH=$::env(PATH) HOME=$::env(HOME) TERM=dumb NODE_NO_WARNINGS=1 $env_exports ami
+    sleep 3
+    $send_script
+    send \"/quit\r\"
+    expect eof
+  " 2>&1 | strip_ansi || true
+}
+
+# Provider env-var mapping — canonical name for each provider's API key.
+provider_env_var() {
+  case "$1" in
+    google)     echo "GOOGLE_API_KEY" ;;
+    groq)       echo "GROQ_API_KEY" ;;
+    openrouter) echo "AI_API_KEY" ;;
+    mistral)    echo "MISTRAL_API_KEY" ;;
+    cerebras)   echo "CEREBRAS_API_KEY" ;;
+    openai)     echo "OPENAI_API_KEY" ;;
+    anthropic)  echo "ANTHROPIC_API_KEY" ;;
+    xai)        echo "XAI_API_KEY" ;;
+    deepseek)   echo "DEEPSEEK_API_KEY" ;;
+    togetherai) echo "TOGETHER_AI_API_KEY" ;;
+    cohere)     echo "COHERE_API_KEY" ;;
+    fireworks)  echo "FIREWORKS_API_KEY" ;;
+    perplexity) echo "PERPLEXITY_API_KEY" ;;
+    deepinfra)  echo "DEEPINFRA_API_KEY" ;;
+    alibaba)    echo "ALIBABA_API_KEY" ;;
+    luma)       echo "LUMA_API_KEY" ;;
+    huggingface) echo "HF_TOKEN" ;;
+    *)          echo "AI_API_KEY" ;;
+  esac
+}
+
+# All known providers (for dynamic enumeration).
+ALL_PROVIDERS=(
+  google groq openrouter mistral cerebras
+  openai anthropic xai deepseek togetherai
+  cohere fireworks perplexity deepinfra
+  alibaba luma huggingface
+)

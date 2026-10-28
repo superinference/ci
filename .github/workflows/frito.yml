@@ -8,7 +8,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
 
     steps:
       - uses: actions/checkout@v4
@@ -21,7 +21,7 @@ jobs:
           echo "Config written: $(stat -c%s ~/.ami/frito.json) bytes, perms $(stat -c%a ~/.ami/frito.json)"
 
       - name: Install dependencies
-        run: sudo apt-get install -y jq
+        run: sudo apt-get install -y jq expect
 
       - name: Install ami
         run: |
@@ -53,7 +53,22 @@ jobs:
           export PATH="$HOME/.local/bin:$PATH"
           bash tests/cli.sh
 
-      - name: "Suite 5: Provider Tests (1000+)"
+      - name: "Suite 5: Provider Tests (original 5)"
         run: |
           export PATH="$HOME/.local/bin:$PATH"
           bash tests/providers.sh
+
+      - name: "Suite 6: All Providers (dynamic, 22 providers)"
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          bash tests/providers-all.sh
+
+      - name: "Suite 7: Slash Commands (expect-based, dynamic discovery)"
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          bash tests/slash-commands.sh
+
+      - name: "Suite 8: Agent Features (tools, sessions, permissions)"
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          bash tests/agent-features.sh
