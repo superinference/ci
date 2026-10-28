@@ -2,9 +2,6 @@ name: OpenShell Container Tests
 
 on:
   push:
-    paths:
-      - '.github/workflows/openshell.yml'
-      - 'tests/**'
   workflow_dispatch:
   schedule:
     - cron: '42 5 * * 1'
