@@ -1,0 +1,98 @@
+{
+  "enabled": true,
+  "quality": "balanced",
+  "referenceProvider": "openai",
+  "referenceModel": "gpt-4o",
+  "providers": {
+    "google": {
+      "keys": ["YOUR_GOOGLE_API_KEY"],
+      "model": "gemini-2.5-flash",
+      "tier": "permanent"
+    },
+    "groq": {
+      "keys": ["YOUR_GROQ_API_KEY"],
+      "model": "llama-3.3-70b-versatile",
+      "tier": "permanent"
+    },
+    "cerebras": {
+      "keys": ["YOUR_CEREBRAS_API_KEY"],
+      "model": "llama-3.3-70b",
+      "tier": "permanent"
+    },
+    "huggingface": {
+      "keys": ["YOUR_HF_TOKEN"],
+      "model": "deepseek-ai/DeepSeek-V3-0324",
+      "tier": "permanent"
+    },
+    "mistral": {
+      "keys": ["YOUR_MISTRAL_API_KEY"],
+      "model": "mistral-small-latest",
+      "tier": "permanent"
+    },
+    "openrouter": {
+      "keys": ["YOUR_OPENROUTER_API_KEY"],
+      "model": "google/gemma-2-9b-it:free",
+      "tier": "permanent"
+    },
+    "deepseek": {
+      "keys": ["YOUR_DEEPSEEK_API_KEY"],
+      "model": "deepseek-chat",
+      "tier": "credits"
+    },
+    "xai": {
+      "keys": ["YOUR_XAI_API_KEY"],
+      "model": "grok-3-mini",
+      "tier": "credits"
+    },
+    "togetherai": {
+      "keys": ["YOUR_TOGETHER_AI_API_KEY"],
+      "model": "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
+      "tier": "credits"
+    },
+    "openai": {
+      "keys": ["YOUR_OPENAI_API_KEY"],
+      "model": "gpt-4o",
+      "tier": "paid"
+    },
+    "anthropic": {
+      "keys": ["YOUR_ANTHROPIC_API_KEY"],
+      "model": "claude-sonnet-4-20250514",
+      "tier": "paid"
+    },
+    "cohere": {
+      "keys": ["YOUR_COHERE_API_KEY"],
+      "model": "command-r-plus",
+      "tier": "permanent"
+    },
+    "fireworks": {
+      "keys": ["YOUR_FIREWORKS_API_KEY"],
+      "model": "accounts/fireworks/models/llama-v3p1-70b-instruct",
+      "tier": "credits"
+    },
+    "perplexity": {
+      "keys": ["YOUR_PERPLEXITY_API_KEY"],
+      "model": "llama-3.1-sonar-small-128k-online",
+      "tier": "paid"
+    },
+    "deepinfra": {
+      "keys": ["YOUR_DEEPINFRA_API_KEY"],
+      "model": "meta-llama/Meta-Llama-3.1-70B-Instruct",
+      "tier": "credits"
+    },
+    "alibaba": {
+      "keys": ["YOUR_ALIBABA_API_KEY"],
+      "model": "qwen-plus",
+      "tier": "permanent"
+    },
+    "luma": {
+      "keys": ["YOUR_LUMA_API_KEY"],
+      "model": "luminai-latest",
+      "tier": "paid"
+    },
+    "nvidia": {
+      "keys": ["YOUR_NVIDIA_API_KEY"],
+      "model": "llama-3.3-70b-versatile",
+      "tier": "paid"
+    }
+  }
+}
