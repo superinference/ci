@@ -73,21 +73,17 @@ jobs:
           path: /tmp
       - name: Load image
         run: docker load < /tmp/openshell-ami.tar.gz
-      - name: Write frito config
-        run: |
-          mkdir -p /tmp/ami-config
-          echo '${{ secrets.AMI_FRITO }}' > /tmp/ami-config/frito.json
-          chmod 644 /tmp/ami-config/frito.json
       - name: "Config Validation (in container)"
         run: |
           docker run --rm \
             --tmpfs /dev/shm:rw,nosuid,nodev,exec,size=2g \
             --entrypoint bash \
             -v "$PWD/tests:/tests:ro" \
-            -v "/tmp/ami-config/frito.json:/tmp/frito.json:ro" \
-            -e "FRITO_CONFIG=/tmp/frito.json" \
+            -e "FRITO_JSON=$FRITO_JSON" \
             openshell-ami:test \
             -c 'bash /tests/config.sh'
+        env:
+          FRITO_JSON: ${{ secrets.AMI_FRITO }}
 
   suite-3:
     runs-on: ubuntu-latest
@@ -101,21 +97,17 @@ jobs:
           path: /tmp
       - name: Load image
         run: docker load < /tmp/openshell-ami.tar.gz
-      - name: Write frito config
-        run: |
-          mkdir -p /tmp/ami-config
-          echo '${{ secrets.AMI_FRITO }}' > /tmp/ami-config/frito.json
-          chmod 644 /tmp/ami-config/frito.json
       - name: "CLI Flags (in container)"
         run: |
           docker run --rm \
             --tmpfs /dev/shm:rw,nosuid,nodev,exec,size=2g \
             --entrypoint bash \
             -v "$PWD/tests:/tests:ro" \
-            -v "/tmp/ami-config/frito.json:/tmp/frito.json:ro" \
-            -e "FRITO_CONFIG=/tmp/frito.json" \
+            -e "FRITO_JSON=$FRITO_JSON" \
             openshell-ami:test \
             -c 'export PATH="/sandbox/.local/bin:$PATH" && bash /tests/cli.sh'
+        env:
+          FRITO_JSON: ${{ secrets.AMI_FRITO }}
 
   suite-4:
     runs-on: ubuntu-latest
@@ -129,22 +121,18 @@ jobs:
           path: /tmp
       - name: Load image
         run: docker load < /tmp/openshell-ami.tar.gz
-      - name: Write frito config
-        run: |
-          mkdir -p /tmp/ami-config
-          echo '${{ secrets.AMI_FRITO }}' > /tmp/ami-config/frito.json
-          chmod 644 /tmp/ami-config/frito.json
       - name: "Security & Integrity (in container)"
         run: |
           docker run --rm \
             --tmpfs /dev/shm:rw,nosuid,nodev,exec,size=2g \
             --entrypoint bash \
             -v "$PWD/tests:/tests:ro" \
-            -v "/tmp/ami-config/frito.json:/tmp/frito.json:ro" \
-            -e "FRITO_CONFIG=/tmp/frito.json" \
+            -e "FRITO_JSON=$FRITO_JSON" \
             -e "CI_DIR=/tests" \
             openshell-ami:test \
             -c 'export PATH="/sandbox/.local/bin:$PATH" && bash /tests/security.sh'
+        env:
+          FRITO_JSON: ${{ secrets.AMI_FRITO }}
 
   suite-5:
     runs-on: ubuntu-latest
@@ -158,24 +146,19 @@ jobs:
           path: /tmp
       - name: Load image
         run: docker load < /tmp/openshell-ami.tar.gz
-      - name: Write frito config
-        run: |
-          mkdir -p /tmp/ami-config
-          echo '${{ secrets.AMI_FRITO }}' > /tmp/ami-config/frito.json
-          chmod 644 /tmp/ami-config/frito.json
       - name: "Provider Tests (in container)"
-        env:
-          AI_API_KEY: ${{ secrets.AI_API_KEY }}
         run: |
           docker run --rm \
             --tmpfs /dev/shm:rw,nosuid,nodev,exec,size=2g \
             --entrypoint bash \
             -v "$PWD/tests:/tests:ro" \
-            -v "/tmp/ami-config/frito.json:/tmp/frito.json:ro" \
-            -e "FRITO_CONFIG=/tmp/frito.json" \
+            -e "FRITO_JSON=$FRITO_JSON" \
             -e "AI_API_KEY=$AI_API_KEY" \
             openshell-ami:test \
             -c 'export PATH="/sandbox/.local/bin:$PATH" && bash /tests/providers.sh'
+        env:
+          FRITO_JSON: ${{ secrets.AMI_FRITO }}
+          AI_API_KEY: ${{ secrets.AI_API_KEY }}
 
   publish:
     runs-on: ubuntu-latest

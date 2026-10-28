@@ -5,8 +5,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/helpers.sh"
 
-if [ ! -f "$FRITO_CONFIG" ]; then
-  echo "ERROR: $FRITO_CONFIG not found"
+if ! has_frito_config; then
+  echo "ERROR: No frito config (set FRITO_JSON env var or FRITO_CONFIG file path)"
   exit 1
 fi
 

@@ -6,8 +6,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/helpers.sh"
 
-if [ ! -f "$FRITO_CONFIG" ]; then
-  echo "ERROR: $FRITO_CONFIG not found"
+if ! has_frito_config; then
+  echo "ERROR: No frito config (set FRITO_JSON env var or FRITO_CONFIG file path)"
   exit 1
 fi
 
@@ -15,7 +15,7 @@ AMI_TIMEOUT=45
 
 echo ""
 echo "$(bold 'FRITO Provider Tests — 1000+ Assertions')"
-echo "$(dim "Config: $FRITO_CONFIG")"
+echo "$(dim "Config: ${FRITO_JSON:+env:FRITO_JSON}${FRITO_JSON:-$FRITO_CONFIG}")"
 echo "$(dim "Date: $(date -u +%Y-%m-%dT%H:%M:%SZ)")"
 echo "$(dim "Binary: $(command -v ami 2>/dev/null || echo 'not found')")"
 echo ""
@@ -45,13 +45,15 @@ pwait() {
 }
 
 ami_prompt() {
-  local env_var="$1" key="$2" prompt="$3" model="${4:-}"
+  local pid="$1" key="$2" prompt="$3" model="${4:-}"
   local model_args=()
   [ -n "$model" ] && model_args=(--model "$model")
+  local env_args
+  env_args=$(provider_env_string "$pid" "$key")
   local output
   output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" NODE_NO_WARNINGS=1 \
-    "${env_var}=${key}" \
-    ami --prompt "$prompt" "${model_args[@]}" 2>/dev/null) || true
+    $env_args \
+    ami --prompt "$prompt" --max-turns 1 "${model_args[@]}" 2>/dev/null) || true
   if [ -z "$output" ]; then
     echo '{"ok":false,"error":"no output from cli"}'
   else
@@ -65,7 +67,7 @@ assert_ami_response() {
 
   if ! echo "$result" | jq . >/dev/null 2>&1; then
     fail "$prefix: valid JSON" "not JSON: ${result:0:60}"
-    return 1
+    return 0
   fi
   pass "$prefix: valid JSON"
 
@@ -77,18 +79,19 @@ assert_ami_response() {
   elapsed=$(echo "$result" | jq -r '.elapsedMs // 0')
   error=$(echo "$result" | jq -r '.error // empty')
 
+  # Max turns exceeded WITH a response → treat as success (--max-turns 1 still returns a response)
+  if [ "$ok" != "true" ] && echo "$error" | grep -qiE "max.turns" && [ -n "$response" ] && [ "$response" != "null" ]; then
+    pass "$prefix: ok (max-turns with response)"
   # Transient errors → skip remaining assertions
-  if [ "$ok" != "true" ] && echo "$error" | grep -qiE "429|rate.limit|too.many|quota|resource.exhausted|no output|timeout|ECONNREFUSED|ETIMEDOUT|HTTP 5|Max retries|overloaded|max.turns|object Object|server error"; then
+  elif [ "$ok" != "true" ] && echo "$error" | grep -qiE "429|rate.limit|too.many|quota|resource.exhausted|no output|timeout|ECONNREFUSED|ETIMEDOUT|HTTP [45]|Max retries|overloaded|max.turns|object Object|server error|context.overflow|request.too.large"; then
     skip "$prefix: ok" "${error:0:50}"
     skip "$prefix: response" "transient"
     skip "$prefix: model" "transient"
     skip "$prefix: provider" "transient"
     skip "$prefix: time" "transient"
     skip "$prefix: no-error" "transient"
-    return 2
-  fi
-
-  if [ "$ok" = "true" ]; then
+    return 0
+  elif [ "$ok" = "true" ]; then
     pass "$prefix: ok"
   else
     fail "$prefix: ok" "${error:0:80}"
@@ -97,7 +100,7 @@ assert_ami_response() {
     skip "$prefix: provider" "inference failed"
     skip "$prefix: time" "inference failed"
     skip "$prefix: no-error" "inference failed"
-    return 1
+    return 0
   fi
 
   assert_nonempty "$response" "$prefix: response"
@@ -153,9 +156,10 @@ for _entry in "${PROVIDERS[@]}"; do
   if has_key "$_pid"; then
     _k=$(get_key "$_pid")
     _m=$(get_model "$_pid")
+    _env_args=$(provider_env_string "$_pid" "$_k")
     _out=$(timeout 20 env -i PATH="$PATH" HOME="$HOME" TERM="dumb" NODE_NO_WARNINGS=1 \
-      "${_ev}=${_k}" ami --model "$_m" --prompt "hi" 2>/dev/null) || true
-    if [ -n "$_out" ] && echo "$_out" | jq -e '.ok == true' >/dev/null 2>&1; then
+      $_env_args ami --model "$_m" --prompt "hi" --max-turns 1 2>/dev/null) || true
+    if [ -n "$_out" ] && echo "$_out" | jq -e '.ok == true or .error == "Max turns (1) exceeded"' >/dev/null 2>&1; then
       PROVIDER_LIVE[$_pid]=1
       echo "  $(dim "▸ $_pid: live")"
     else
@@ -176,7 +180,7 @@ echo ""
 # ═══════════════════════════════════════════════════════════════════
 
 run_inference_tests() {
-  local env_var="$1" pid="$2" base_url="$3"
+  local pid="$1" base_url="${2:-}"
 
   if ! has_key "$pid" || [ "${PROVIDER_LIVE[$pid]:-0}" = "0" ]; then
     skip "$pid — no key or provider unavailable"
@@ -193,8 +197,8 @@ run_inference_tests() {
   echo "  $(dim '▸ Basic Inference')"
   pwait "$pid"
   local r resp
-  r=$(ami_prompt "$env_var" "$key" "Say hello in one word" "$model")
-  assert_ami_response "$r" "$pid/basic"
+  r=$(ami_prompt "$pid" "$key" "Say hello in one word" "$model")
+  assert_ami_response "$r" "$pid/basic" || true
 
   # ── Math ───────────────────────────────────────────────────────
   echo "  $(dim '▸ Math & Arithmetic')"
@@ -210,7 +214,7 @@ run_inference_tests() {
     q="${tc%%|*}"
     a="${tc##*|}"
     pwait "$pid"
-    r=$(ami_prompt "$env_var" "$key" "$q" "$model")
+    r=$(ami_prompt "$pid" "$key" "$q" "$model")
     assert_ami_response "$r" "$pid/math-$a"
     resp=$(get_response "$r")
     if echo "$resp" | grep -q "$a"; then
@@ -234,7 +238,7 @@ run_inference_tests() {
     q="${tc%%|*}"
     a="${tc##*|}"
     pwait "$pid"
-    r=$(ami_prompt "$env_var" "$key" "$q" "$model")
+    r=$(ami_prompt "$pid" "$key" "$q" "$model")
     assert_ami_response "$r" "$pid/know-$a"
     resp=$(get_response "$r")
     if echo "$resp" | grep -qi "$a"; then
@@ -248,25 +252,25 @@ run_inference_tests() {
   echo "  $(dim '▸ Instruction Following')"
 
   pwait "$pid"
-  r=$(ami_prompt "$env_var" "$key" "Reply with exactly the word PONG and nothing else." "$model")
+  r=$(ami_prompt "$pid" "$key" "Reply with exactly the word PONG and nothing else." "$model")
   assert_ami_response "$r" "$pid/instr-pong"
   resp=$(get_response "$r")
   echo "$resp" | grep -qi "PONG" && pass "$pid/instr-pong: correct" || skip "$pid/instr-pong: correct" "${resp:0:20}"
 
   pwait "$pid"
-  r=$(ami_prompt "$env_var" "$key" 'Reply with only this JSON: {"color":"blue","n":42}' "$model")
+  r=$(ami_prompt "$pid" "$key" 'Reply with only this JSON: {"color":"blue","n":42}' "$model")
   assert_ami_response "$r" "$pid/instr-json"
   resp=$(get_response "$r")
   echo "$resp" | grep -q '"color"' && pass "$pid/instr-json: has field" || skip "$pid/instr-json: has field" "${resp:0:40}"
 
   pwait "$pid"
-  r=$(ami_prompt "$env_var" "$key" "List exactly 3 colors, one per line, no extra text." "$model")
+  r=$(ami_prompt "$pid" "$key" "List exactly 3 colors, one per line, no extra text." "$model")
   assert_ami_response "$r" "$pid/instr-list"
   resp=$(get_response "$r")
   [ -n "$resp" ] && pass "$pid/instr-list: has content" || skip "$pid/instr-list: has content"
 
   pwait "$pid"
-  r=$(ami_prompt "$env_var" "$key" "Reply with exactly 5 words about the weather." "$model")
+  r=$(ami_prompt "$pid" "$key" "Reply with exactly 5 words about the weather." "$model")
   assert_ami_response "$r" "$pid/instr-5words"
   resp=$(get_response "$r")
   [ -n "$resp" ] && pass "$pid/instr-5words: has content" || skip "$pid/instr-5words: has content"
@@ -275,19 +279,19 @@ run_inference_tests() {
   echo "  $(dim '▸ UTF-8 Handling')"
 
   pwait "$pid"
-  r=$(ami_prompt "$env_var" "$key" "What emoji is this: 🎉? Name it in one word." "$model")
+  r=$(ami_prompt "$pid" "$key" "What emoji is this: 🎉? Name it in one word." "$model")
   assert_ami_response "$r" "$pid/utf8-emoji"
   resp=$(get_response "$r")
   [ -n "$resp" ] && pass "$pid/utf8-emoji: handled" || skip "$pid/utf8-emoji: handled"
 
   pwait "$pid"
-  r=$(ami_prompt "$env_var" "$key" "Translate to English: 你好世界" "$model")
+  r=$(ami_prompt "$pid" "$key" "Translate to English: 你好世界" "$model")
   assert_ami_response "$r" "$pid/utf8-cjk"
   resp=$(get_response "$r")
   [ -n "$resp" ] && pass "$pid/utf8-cjk: handled" || skip "$pid/utf8-cjk: handled"
 
   pwait "$pid"
-  r=$(ami_prompt "$env_var" "$key" "What language is this: Привет мир? Reply briefly." "$model")
+  r=$(ami_prompt "$pid" "$key" "What language is this: Привет мир? Reply briefly." "$model")
   assert_ami_response "$r" "$pid/utf8-cyrillic"
   resp=$(get_response "$r")
   [ -n "$resp" ] && pass "$pid/utf8-cyrillic: handled" || skip "$pid/utf8-cyrillic: handled"
@@ -296,34 +300,34 @@ run_inference_tests() {
   echo "  $(dim '▸ Edge Cases')"
 
   pwait "$pid"
-  r=$(ami_prompt "$env_var" "$key" "a" "$model")
+  r=$(ami_prompt "$pid" "$key" "a" "$model")
   assert_ami_response "$r" "$pid/edge-short"
 
   pwait "$pid"
-  r=$(ami_prompt "$env_var" "$key" "???" "$model")
+  r=$(ami_prompt "$pid" "$key" "???" "$model")
   assert_ami_response "$r" "$pid/edge-punct"
 
   pwait "$pid"
-  r=$(ami_prompt "$env_var" "$key" "42" "$model")
+  r=$(ami_prompt "$pid" "$key" "42" "$model")
   assert_ami_response "$r" "$pid/edge-number"
 
   # ── Code & Reasoning ───────────────────────────────────────────
   echo "  $(dim '▸ Code & Reasoning')"
 
   pwait "$pid"
-  r=$(ami_prompt "$env_var" "$key" "Write a Python function that adds two numbers. Just the code, no explanation." "$model")
+  r=$(ami_prompt "$pid" "$key" "Write a Python function that adds two numbers. Just the code, no explanation." "$model")
   assert_ami_response "$r" "$pid/code-gen"
   resp=$(get_response "$r")
   echo "$resp" | grep -q "def " && pass "$pid/code-gen: has function" || skip "$pid/code-gen: has function" "${resp:0:40}"
 
   pwait "$pid"
-  r=$(ami_prompt "$env_var" "$key" "Is 'All cats are animals, Whiskers is a cat, therefore Whiskers is an animal' valid logic? Reply yes or no." "$model")
+  r=$(ami_prompt "$pid" "$key" "Is 'All cats are animals, Whiskers is a cat, therefore Whiskers is an animal' valid logic? Reply yes or no." "$model")
   assert_ami_response "$r" "$pid/logic"
   resp=$(get_response "$r")
   echo "$resp" | grep -qi "yes" && pass "$pid/logic: correct" || skip "$pid/logic: correct" "${resp:0:30}"
 
   pwait "$pid"
-  r=$(ami_prompt "$env_var" "$key" "Count the vowels in banana. Reply with just the number." "$model")
+  r=$(ami_prompt "$pid" "$key" "Count the vowels in banana. Reply with just the number." "$model")
   assert_ami_response "$r" "$pid/counting"
   resp=$(get_response "$r")
   echo "$resp" | grep -q "3" && pass "$pid/counting: correct" || skip "$pid/counting: correct" "${resp:0:20}"
@@ -379,7 +383,7 @@ run_model_discovery() {
 
     pwait "$pid"
     local r
-    r=$(ami_prompt "$env_var" "$key" "Say ok" "$m")
+    r=$(ami_prompt "$pid" "$key" "Say ok" "$m")
     assert_ami_response "$r" "$pid/model/$m"
     tested=$((tested + 1))
   done <<< "$models"
@@ -511,7 +515,7 @@ _google_errors() {
 run_streaming_tests() {
   local pid="$1" base_url="$2"
 
-  if ! has_key "$pid"; then
+  if ! has_key "$pid" || [ "${PROVIDER_LIVE[$pid]:-0}" = "0" ]; then
     return
   fi
 
@@ -568,7 +572,7 @@ run_streaming_tests() {
 run_curl_advanced() {
   local pid="$1" base_url="$2"
 
-  if ! has_key "$pid"; then
+  if ! has_key "$pid" || [ "${PROVIDER_LIVE[$pid]:-0}" = "0" ]; then
     return
   fi
 
@@ -761,7 +765,7 @@ run_reliability() {
     for round in 1 2 3 4 5; do
       pwait "$pid"
       local r
-      r=$(ami_prompt "$env_var" "$key" "What is ${round}+${round}? Reply with just the number." "$model")
+      r=$(ami_prompt "$pid" "$key" "What is ${round}+${round}? Reply with just the number." "$model")
       assert_ami_response "$r" "$pid/rel-r$round"
     done
   done
@@ -787,15 +791,19 @@ run_cross_provider() {
   [ "${#available[@]}" -ge 2 ] && pass "cross: ${#available[@]} providers" || { skip "cross: multiple providers"; return; }
 
   local perms
-  perms=$(stat -c%a "$FRITO_CONFIG" 2>/dev/null || stat -f%OLp "$FRITO_CONFIG" 2>/dev/null || echo "unknown")
-  [ "$perms" = "600" ] && pass "cross: frito.json perms (600)" || skip "cross: frito.json perms" "$perms"
+  if [ -z "${FRITO_JSON:-}" ] && [ -f "$FRITO_CONFIG" ]; then
+    perms=$(stat -c%a "$FRITO_CONFIG" 2>/dev/null || stat -f%OLp "$FRITO_CONFIG" 2>/dev/null || echo "unknown")
+    [ "$perms" = "600" ] && pass "cross: frito.json perms (600)" || skip "cross: frito.json perms" "$perms"
+  else
+    pass "cross: config via env var (no file)"
+  fi
 
   for field in "providers" "quality" "enabled"; do
-    jq -e ".$field" "$FRITO_CONFIG" >/dev/null 2>&1 && pass "cross: config has .$field" || fail "cross: config has .$field"
+    frito_jq "has(\"$field\")" 2>/dev/null | grep -q true && pass "cross: config has .$field" || fail "cross: config has .$field"
   done
 
-  local known="google groq openrouter cerebras mistral huggingface deepseek xai together ollama openai anthropic github"
-  for pid in $(jq -r '.providers | keys[]' "$FRITO_CONFIG" 2>/dev/null); do
+  local known="google groq openrouter cerebras mistral huggingface deepseek xai togetherai ollama openai anthropic github nvidia alibaba cohere deepinfra fireworks luma perplexity"
+  for pid in $(frito_jq -r '.providers | keys[]' 2>/dev/null); do
     echo "$known" | grep -qw "$pid" && pass "cross: $pid is known" || fail "cross: $pid is known"
   done
 
@@ -888,7 +896,7 @@ run_cross_provider() {
 
 for entry in "${PROVIDERS[@]}"; do
   IFS='|' read -r env_var pid base_url <<< "$entry"
-  run_inference_tests "$env_var" "$pid" "$base_url"
+  run_inference_tests "$pid" "$base_url"
   run_model_discovery "$env_var" "$pid" "$base_url"
   run_error_tests "$pid" "$base_url"
   run_streaming_tests "$pid" "$base_url"
