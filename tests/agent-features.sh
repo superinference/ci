@@ -107,7 +107,7 @@ if [ -n "$TOOL_PID" ]; then
   # ── File read tool ─────────────────────────────────────────────
   echo "  $(dim '▸ File read tool')"
   pwait "$TOOL_PID"
-  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     $TOOL_ENV \
     ami --model "$TOOL_MODEL" --permission-mode auto-allow --max-turns 3 \
     --prompt "Read the file /etc/hostname and tell me what it contains. Just the contents, nothing else." 2>/dev/null) || true
@@ -138,7 +138,7 @@ if [ -n "$TOOL_PID" ]; then
   # ── Bash execution tool ────────────────────────────────────────
   echo "  $(dim '▸ Bash execution tool')"
   pwait "$TOOL_PID"
-  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     $TOOL_ENV \
     ami --model "$TOOL_MODEL" --permission-mode auto-allow --max-turns 3 \
     --prompt "Run the command 'echo hello123' and tell me the output. Just the output." 2>/dev/null) || true
@@ -175,7 +175,7 @@ if [ -n "$TOOL_PID" ]; then
   # ── Working directory tool ─────────────────────────────────────
   echo "  $(dim '▸ Working directory')"
   pwait "$TOOL_PID"
-  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     $TOOL_ENV \
     ami --model "$TOOL_MODEL" --permission-mode auto-allow --max-turns 3 \
     --prompt "What directory are you in? Run pwd and tell me the result." 2>/dev/null) || true
@@ -208,7 +208,7 @@ if [ -n "$TOOL_PID" ]; then
   # ── File listing tool ──────────────────────────────────────────
   echo "  $(dim '▸ File listing')"
   pwait "$TOOL_PID"
-  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     $TOOL_ENV \
     ami --model "$TOOL_MODEL" --permission-mode auto-allow --max-turns 3 \
     --prompt "List files in /tmp using ls and tell me what you see. Just the listing." 2>/dev/null) || true
@@ -237,7 +237,7 @@ if [ -n "$TOOL_PID" ]; then
   # ── Multiple tools (date) ──────────────────────────────────────
   echo "  $(dim '▸ Multiple tools (date)')"
   pwait "$TOOL_PID"
-  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     $TOOL_ENV \
     ami --model "$TOOL_MODEL" --permission-mode auto-allow --max-turns 3 \
     --prompt "Run 'date +%Y' and tell me the year. Just the year number." 2>/dev/null) || true
@@ -272,7 +272,7 @@ if [ -n "$TOOL_PID" ]; then
   # ── Error handling (nonexistent file) ──────────────────────────
   echo "  $(dim '▸ Tool error handling')"
   pwait "$TOOL_PID"
-  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     $TOOL_ENV \
     ami --model "$TOOL_MODEL" --permission-mode auto-allow --max-turns 3 \
     --prompt "Read /nonexistent/file/path/xyz123 and tell me what happened." 2>/dev/null) || true
@@ -303,7 +303,7 @@ if [ -n "$TOOL_PID" ]; then
   # ── Environment variable reading ──────────────────────────────
   echo "  $(dim '▸ Env var in tool context')"
   pwait "$TOOL_PID"
-  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     $TOOL_ENV TEST_MARKER_XYZ="frito-test-42" \
     ami --model "$TOOL_MODEL" --permission-mode auto-allow --max-turns 3 \
     --prompt "Run 'echo \$TEST_MARKER_XYZ' and tell me the output." 2>/dev/null) || true
@@ -332,7 +332,7 @@ if [ -n "$TOOL_PID" ]; then
   # ── Multi-step tool use ────────────────────────────────────────
   echo "  $(dim '▸ Multi-step tool use')"
   pwait "$TOOL_PID"
-  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     $TOOL_ENV \
     ami --model "$TOOL_MODEL" --permission-mode auto-allow --max-turns 3 \
     --prompt "Run 'uname -s' and tell me the operating system." 2>/dev/null) || true
@@ -367,7 +367,7 @@ if [ -n "$TOOL_PID" ]; then
   ROUNDTRIP_DIR=$(mktemp -d)
   ROUNDTRIP_FILE="$ROUNDTRIP_DIR/agent-test-file.txt"
   pwait "$TOOL_PID"
-  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     $TOOL_ENV \
     ami --model "$TOOL_MODEL" --permission-mode auto-allow --max-turns 3 \
     --prompt "Write the text 'FRITO_MARKER_99' to $ROUNDTRIP_FILE using bash, then read it back and tell me what it says." 2>/dev/null) || true
@@ -405,7 +405,7 @@ if [ -n "$TOOL_PID" ]; then
   # ── Arithmetic via tool ────────────────────────────────────────
   echo "  $(dim '▸ Arithmetic via bash tool')"
   pwait "$TOOL_PID"
-  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     $TOOL_ENV \
     ami --model "$TOOL_MODEL" --permission-mode auto-allow --max-turns 3 \
     --prompt "Run 'echo \$((7 * 13))' in bash and tell me the result. Just the number." 2>/dev/null) || true
@@ -447,7 +447,7 @@ if [ -n "$TOOL_PID" ]; then
   # ── auto-allow mode ────────────────────────────────────────────
   echo "  $(dim '▸ auto-allow mode')"
   pwait "$TOOL_PID"
-  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     $TOOL_ENV \
     ami --model "$TOOL_MODEL" --permission-mode auto-allow --max-turns 3 \
     --prompt "Run 'echo perm-test-auto' and tell me the output." 2>/dev/null) || true
@@ -482,7 +482,7 @@ if [ -n "$TOOL_PID" ]; then
   # ── deny-all mode ──────────────────────────────────────────────
   echo "  $(dim '▸ deny-all mode')"
   pwait "$TOOL_PID"
-  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     $TOOL_ENV \
     ami --model "$TOOL_MODEL" --permission-mode deny-all \
     --prompt "Run 'echo denied-test' and tell me the output." 2>/dev/null) || true
@@ -513,7 +513,7 @@ if [ -n "$TOOL_PID" ]; then
   # ── ask mode (default) ─────────────────────────────────────────
   echo "  $(dim '▸ ask mode (default)')"
   pwait "$TOOL_PID"
-  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     $TOOL_ENV \
     ami --model "$TOOL_MODEL" --permission-mode ask \
     --prompt "Say hello" 2>/dev/null) || true
@@ -541,7 +541,7 @@ if [ -n "$TOOL_PID" ]; then
 
   # ── invalid permission mode ────────────────────────────────────
   echo "  $(dim '▸ invalid permission mode')"
-  INVALID_PERM_OUT=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+  INVALID_PERM_OUT=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     $TOOL_ENV \
     ami --model "$TOOL_MODEL" --permission-mode "bogus-mode" --prompt "hi" 2>&1 || true)
 
@@ -550,13 +550,13 @@ if [ -n "$TOOL_PID" ]; then
   # ── auto-allow enables tool output ─────────────────────────────
   echo "  $(dim '▸ auto-allow vs deny-all comparison')"
   pwait "$TOOL_PID"
-  auto_output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+  auto_output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     $TOOL_ENV \
     ami --model "$TOOL_MODEL" --permission-mode auto-allow --max-turns 3 \
     --prompt "Run 'echo permcheck-777' and tell me the exact output." 2>/dev/null) || true
 
   pwait "$TOOL_PID"
-  deny_output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+  deny_output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     $TOOL_ENV \
     ami --model "$TOOL_MODEL" --permission-mode deny-all \
     --prompt "Run 'echo permcheck-777' and tell me the exact output." 2>/dev/null) || true
@@ -594,7 +594,7 @@ if [ -n "$TOOL_PID" ]; then
 
   echo "  $(dim '▸ JSON schema verification')"
   pwait "$TOOL_PID"
-  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     $TOOL_ENV \
     ami --model "$TOOL_MODEL" --prompt "Say hello" 2>/dev/null) || true
 
@@ -683,7 +683,7 @@ if [ -n "$TOOL_PID" ]; then
   # ── Session creation ───────────────────────────────────────────
   echo "  $(dim '▸ Session creation')"
   pwait "$TOOL_PID"
-  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     $TOOL_ENV \
     ami --model "$TOOL_MODEL" --prompt "Say session test" 2>/dev/null) || true
 
@@ -707,12 +707,12 @@ if [ -n "$TOOL_PID" ]; then
   # ── Multiple independent prompts ───────────────────────────────
   echo "  $(dim '▸ Multiple independent prompts')"
   pwait "$TOOL_PID"
-  out1=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+  out1=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     $TOOL_ENV \
     ami --model "$TOOL_MODEL" --prompt "What is 3+3? Reply with just the number." 2>/dev/null) || true
 
   pwait "$TOOL_PID"
-  out2=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+  out2=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     $TOOL_ENV \
     ami --model "$TOOL_MODEL" --prompt "What is 5+5? Reply with just the number." 2>/dev/null) || true
 
@@ -739,7 +739,7 @@ if [ -n "$TOOL_PID" ]; then
 
   # ── Resume with invalid session ID ─────────────────────────────
   echo "  $(dim '▸ Resume with invalid session')"
-  resume_out=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+  resume_out=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     $TOOL_ENV \
     ami --model "$TOOL_MODEL" --resume "invalid-session-id-xyz-999" --prompt "hi" 2>&1 || true)
 
@@ -755,12 +755,12 @@ if [ -n "$TOOL_PID" ]; then
   # ── Session isolation ──────────────────────────────────────────
   echo "  $(dim '▸ Session isolation')"
   pwait "$TOOL_PID"
-  iso1=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+  iso1=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     $TOOL_ENV \
     ami --model "$TOOL_MODEL" --prompt "My secret code is ALPHA-7. Remember it." 2>/dev/null) || true
 
   pwait "$TOOL_PID"
-  iso2=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+  iso2=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     $TOOL_ENV \
     ami --model "$TOOL_MODEL" --prompt "What is my secret code?" 2>/dev/null) || true
 
@@ -805,7 +805,7 @@ for pid in google groq mistral openrouter deepseek openai; do
   _env_args=$(provider_env_string "$pid" "$key")
 
   pwait "$pid"
-  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     $_env_args \
     ami --model "$model" --prompt "Say ok" 2>/dev/null) || true
 
@@ -843,7 +843,7 @@ done
 echo "  $(dim '▸ Provider auto-detection via env var')"
 if [ -n "$TOOL_PID" ]; then
   pwait "$TOOL_PID"
-  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     $TOOL_ENV \
     ami --model "$TOOL_MODEL" --prompt "Say ok" 2>/dev/null) || true
 
@@ -866,7 +866,7 @@ if [ -n "$TOOL_PID" ]; then
 
   echo "  $(dim '▸ Simple prompt completes quickly')"
   pwait "$TOOL_PID"
-  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     $TOOL_ENV \
     ami --model "$TOOL_MODEL" --prompt "Say ok" 2>/dev/null) || true
 
@@ -892,7 +892,7 @@ if [ -n "$TOOL_PID" ]; then
 
   echo "  $(dim '▸ Tool-heavy prompt timing')"
   pwait "$TOOL_PID"
-  output=$(timeout 60 env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+  output=$(timeout 60 env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     $TOOL_ENV \
     ami --model "$TOOL_MODEL" --permission-mode auto-allow --max-turns 3 \
     --prompt "Run 'echo done' and tell me the output." 2>/dev/null) || true
@@ -918,7 +918,7 @@ if [ -n "$TOOL_PID" ]; then
   echo "  $(dim '▸ Detached mode completes (no hang)')"
   START_TIME=$(date +%s)
   pwait "$TOOL_PID"
-  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     $TOOL_ENV \
     ami --model "$TOOL_MODEL" --prompt "Reply with exactly: DONE" 2>/dev/null) || true
   END_TIME=$(date +%s)
@@ -942,7 +942,7 @@ if [ -n "$TOOL_PID" ]; then
   # ── Provider key overrides invalid AI_API_KEY ──────────────────
   echo "  $(dim '▸ Provider-specific key overrides AI_API_KEY')"
   pwait "$TOOL_PID"
-  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     AI_API_KEY="invalid-key-xxx" $TOOL_ENV \
     ami --model "$TOOL_MODEL" --prompt "Say ok" 2>/dev/null) || true
 
@@ -959,7 +959,7 @@ if [ -n "$TOOL_PID" ]; then
   # ── AI_MODEL env sets model ────────────────────────────────────
   echo "  $(dim '▸ AI_MODEL env var')"
   pwait "$TOOL_PID"
-  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     $TOOL_ENV AI_MODEL="$TOOL_MODEL" \
     ami --prompt "Say ok" 2>/dev/null) || true
 
@@ -977,7 +977,7 @@ if [ -n "$TOOL_PID" ]; then
   # ── --model overrides AI_MODEL ─────────────────────────────────
   echo "  $(dim '▸ --model overrides AI_MODEL')"
   pwait "$TOOL_PID"
-  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     $TOOL_ENV AI_MODEL="wrong-model-xyz" \
     ami --model "$TOOL_MODEL" --prompt "Say ok" 2>/dev/null) || true
 
@@ -995,7 +995,7 @@ if [ -n "$TOOL_PID" ]; then
   # ── --api-key overrides env ────────────────────────────────────
   echo "  $(dim '▸ --api-key overrides env')"
   pwait "$TOOL_PID"
-  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     "${TOOL_ENV}=invalid-key-xxx" \
     ami --api-key "$TOOL_KEY" --model "$TOOL_MODEL" --prompt "Say ok" 2>/dev/null) || true
 
@@ -1013,7 +1013,7 @@ if [ -n "$TOOL_PID" ]; then
   echo "  $(dim '▸ AI_BASE_URL env var')"
   if [ "$TOOL_PID" = "groq" ]; then
     pwait "$TOOL_PID"
-    output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+    output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
       $TOOL_ENV AI_BASE_URL="https://api.groq.com/openai/v1" \
       ami --model "$TOOL_MODEL" --prompt "Say ok" 2>/dev/null) || true
 
@@ -1030,7 +1030,7 @@ if [ -n "$TOOL_PID" ]; then
   # ── Key not leaked in output ───────────────────────────────────
   echo "  $(dim '▸ Key not leaked in output')"
   pwait "$TOOL_PID"
-  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     $TOOL_ENV \
     ami --model "$TOOL_MODEL" --prompt "Say ok" 2>/dev/null) || true
 
@@ -1054,7 +1054,7 @@ section "Error Resilience"
 # ── Invalid API key ──────────────────────────────────────────────
 echo "  $(dim '▸ Invalid API key')"
 NO_KEY_HOME=$(mktemp -d)
-INVALID_OUT=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$NO_KEY_HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+INVALID_OUT=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$NO_KEY_HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
   AI_API_KEY="totally-invalid-key-xyz" \
   ami --model "test-model" --prompt "hello" 2>&1 || true)
 rm -rf "$NO_KEY_HOME"
@@ -1065,7 +1065,7 @@ echo "$INVALID_OUT" | grep -q "at Object\.\|TypeError\|ReferenceError" && fail "
 # ── No API key at all ────────────────────────────────────────────
 echo "  $(dim '▸ No API key')"
 NO_KEY_HOME2=$(mktemp -d)
-NO_KEY_OUT=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$NO_KEY_HOME2" TERM=dumb NODE_NO_WARNINGS=1 \
+NO_KEY_OUT=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$NO_KEY_HOME2" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
   ami --prompt "hello" 2>&1 || true)
 rm -rf "$NO_KEY_HOME2"
 
@@ -1077,7 +1077,7 @@ echo "$NO_KEY_OUT" | grep -q "at Object\.\|TypeError\|ReferenceError" && fail "e
 echo "  $(dim '▸ Invalid model name')"
 if [ -n "$TOOL_PID" ]; then
   pwait "$TOOL_PID"
-  BAD_MODEL_OUT=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+  BAD_MODEL_OUT=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     $TOOL_ENV \
     ami --model "nonexistent-model-xyz-999" --prompt "hi" 2>&1 || true)
 
@@ -1090,7 +1090,7 @@ fi
 
 # ── Invalid base URL ─────────────────────────────────────────────
 echo "  $(dim '▸ Invalid base URL')"
-BAD_URL_OUT=$(timeout 15 env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+BAD_URL_OUT=$(timeout 15 env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
   AI_API_KEY="test-key" \
   ami --base-url "https://localhost:19999/nonexistent" --model "test" --prompt "hi" 2>&1 || true)
 
@@ -1100,7 +1100,7 @@ echo "$BAD_URL_OUT" | grep -q "at Object\.\|TypeError\|ReferenceError" && fail "
 # ── Empty prompt ─────────────────────────────────────────────────
 echo "  $(dim '▸ Empty prompt')"
 if [ -n "$TOOL_PID" ]; then
-  EMPTY_OUT=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+  EMPTY_OUT=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     $TOOL_ENV \
     ami --model "$TOOL_MODEL" --prompt "" 2>&1 || true)
 
@@ -1116,7 +1116,7 @@ echo "  $(dim '▸ Very long prompt')"
 if [ -n "$TOOL_PID" ]; then
   LONG_PROMPT=$(python3 -c "print('x ' * 500)" 2>/dev/null || printf 'x %.0s' {1..1000})
   pwait "$TOOL_PID"
-  LONG_OUT=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+  LONG_OUT=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     $TOOL_ENV \
     ami --model "$TOOL_MODEL" --prompt "$LONG_PROMPT" 2>/dev/null) || true
 
@@ -1139,7 +1139,7 @@ fi
 # ── Invalid permission mode (non-zero exit) ──────────────────────
 echo "  $(dim '▸ Invalid permission mode exit code')"
 BAD_PERM_RC=0
-timeout 15 env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+timeout 15 env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
   AI_API_KEY="test-key" \
   ami --permission-mode "invalid-mode-xyz" --prompt "hi" >/dev/null 2>&1 || BAD_PERM_RC=$?
 [ "$BAD_PERM_RC" -ne 0 ] && pass "error/bad-perm: non-zero exit ($BAD_PERM_RC)" || skip "error/bad-perm: non-zero exit" "rc=0"
@@ -1154,12 +1154,12 @@ if [ -n "$TOOL_PID" ] && [ -n "$SECOND_PID" ]; then
   echo "  $(dim "▸ Two providers: $TOOL_PID + $SECOND_PID")"
 
   pwait "$TOOL_PID"
-  out1=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+  out1=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     $TOOL_ENV \
     ami --model "$TOOL_MODEL" --prompt "What is 2+2? Reply with just the number." 2>/dev/null) || true
 
   pwait "$SECOND_PID"
-  out2=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+  out2=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     $SECOND_ENV \
     ami --model "$SECOND_MODEL" --prompt "What is 2+2? Reply with just the number." 2>/dev/null) || true
 
@@ -1198,7 +1198,7 @@ if [ -n "$TOOL_PID" ]; then
   for i in 1 2 3; do
     (
       pwait "$TOOL_PID"
-      output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+      output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
         $TOOL_ENV \
         ami --model "$TOOL_MODEL" --prompt "What is ${i}+${i}? Reply with just the number." 2>/dev/null) || true
       echo "$output" > "$CONC_DIR/result-$i"
@@ -1243,7 +1243,7 @@ if [ -n "$TOOL_PID" ]; then
   # ── auto-allow: tool should produce visible output ─────────────
   echo "  $(dim '▸ auto-allow tool produces result')"
   pwait "$TOOL_PID"
-  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     $TOOL_ENV \
     ami --model "$TOOL_MODEL" --permission-mode auto-allow --max-turns 3 \
     --prompt "Run 'cat /etc/os-release | head -1' and tell me the output." 2>/dev/null) || true
@@ -1266,7 +1266,7 @@ if [ -n "$TOOL_PID" ]; then
   # ── deny-all: tool request should still produce a response ─────
   echo "  $(dim '▸ deny-all still produces response')"
   pwait "$TOOL_PID"
-  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     $TOOL_ENV \
     ami --model "$TOOL_MODEL" --permission-mode deny-all \
     --prompt "Say the word BANANA" 2>/dev/null) || true
@@ -1300,7 +1300,7 @@ if [ -n "$TOOL_PID" ]; then
   echo "  $(dim '▸ 3 rounds of consistent output format')"
   for round in 1 2 3; do
     pwait "$TOOL_PID"
-    output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+    output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
       $TOOL_ENV \
       ami --model "$TOOL_MODEL" --prompt "Say round-$round" 2>/dev/null) || true
 
@@ -1342,7 +1342,7 @@ section "Additional CLI Flags"
 
 # --quiet: suppresses non-JSON output
 echo "  $(dim '▸ --quiet flag')"
-quiet_out=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+quiet_out=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
   ami --prompt "say hi" --quiet 2>&1) || true
 if [ -n "$quiet_out" ]; then
   pass "quiet: produces output"
@@ -1366,7 +1366,7 @@ fi
 
 # --config: custom config path
 echo "  $(dim '▸ --config flag')"
-cfg_out=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+cfg_out=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
   ami --config /nonexistent/config.json --prompt "hi" 2>&1) || true
 if [ -n "$cfg_out" ]; then
   pass "config: accepts flag"
@@ -1378,7 +1378,7 @@ fi
 echo "  $(dim '▸ --context-file flag')"
 CTX_TMP=$(mktemp)
 echo "Context: The sky is blue." > "$CTX_TMP"
-ctx_out=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+ctx_out=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
   ami --context-file "$CTX_TMP" --prompt "What color is the sky?" 2>&1) || true
 rm -f "$CTX_TMP"
 if [ -n "$ctx_out" ]; then
@@ -1389,7 +1389,7 @@ fi
 
 # --deny: deny specific tools
 echo "  $(dim '▸ --deny flag')"
-deny_out=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+deny_out=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
   ami --deny bash --prompt "hi" 2>&1) || true
 if [ -n "$deny_out" ]; then
   pass "deny: accepts flag"
@@ -1399,7 +1399,7 @@ fi
 
 # --allow: allow specific tools
 echo "  $(dim '▸ --allow flag')"
-allow_out=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+allow_out=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
   ami --allow file_read --prompt "hi" 2>&1) || true
 if [ -n "$allow_out" ]; then
   pass "allow: accepts flag"
@@ -1409,7 +1409,7 @@ fi
 
 # --extra-body: pass extra JSON to API
 echo "  $(dim '▸ --extra-body flag')"
-extra_out=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+extra_out=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
   ami --extra-body '{"temperature":0.5}' --prompt "hi" 2>&1) || true
 if [ -n "$extra_out" ]; then
   pass "extra-body: accepts flag"
@@ -1419,7 +1419,7 @@ fi
 
 # --image: pass image file
 echo "  $(dim '▸ --image flag')"
-img_out=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+img_out=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
   ami --image /nonexistent.png --prompt "describe this" 2>&1) || true
 if [ -n "$img_out" ]; then
   pass "image: accepts flag"
@@ -1429,7 +1429,7 @@ fi
 
 # --input-format: set input format
 echo "  $(dim '▸ --input-format flag')"
-infmt_out=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+infmt_out=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
   ami --input-format text --prompt "hi" 2>&1) || true
 if [ -n "$infmt_out" ]; then
   pass "input-format: accepts flag"
@@ -1439,7 +1439,7 @@ fi
 
 # --output-format: set output format
 echo "  $(dim '▸ --output-format flag')"
-outfmt_out=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+outfmt_out=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
   ami --output-format json --prompt "hi" 2>&1) || true
 if [ -n "$outfmt_out" ]; then
   pass "output-format: accepts flag"
@@ -1449,7 +1449,7 @@ fi
 
 # --run-command: run a command
 echo "  $(dim '▸ --run-command flag')"
-runcmd_out=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+runcmd_out=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
   ami --run-command "echo hello" 2>&1) || true
 if [ -n "$runcmd_out" ]; then
   pass "run-command: accepts flag"
@@ -1459,7 +1459,7 @@ fi
 
 # --scrollback-lines: set scrollback buffer
 echo "  $(dim '▸ --scrollback-lines flag')"
-scroll_out=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+scroll_out=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
   ami --scrollback-lines 50 --prompt "hi" 2>&1) || true
 if [ -n "$scroll_out" ]; then
   pass "scrollback-lines: accepts flag"
@@ -1469,7 +1469,7 @@ fi
 
 # --session-id: set session ID
 echo "  $(dim '▸ --session-id flag')"
-sessid_out=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+sessid_out=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
   ami --session-id "test-sess-$$" --prompt "hi" 2>&1) || true
 if [ -n "$sessid_out" ]; then
   pass "session-id: accepts flag"
@@ -1479,7 +1479,7 @@ fi
 
 # --thinking: set thinking level
 echo "  $(dim '▸ --thinking flag')"
-think_out=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb NODE_NO_WARNINGS=1 \
+think_out=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
   ami --thinking off --prompt "hi" 2>&1) || true
 if [ -n "$think_out" ]; then
   pass "thinking: accepts flag"

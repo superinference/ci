@@ -444,7 +444,7 @@ ami_slash() {
   timeout 60 expect -c "
     set timeout 45
     log_user 0
-    spawn env -i PATH=$::env(PATH) HOME=$::env(HOME) TERM=dumb NODE_NO_WARNINGS=1 $env_exports ami
+    spawn env -i PATH=$::env(PATH) HOME=$::env(HOME) TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 $env_exports ami
     sleep 5
     log_user 1
     send \"$cmd\r\"
@@ -473,7 +473,7 @@ ami_slash_multi() {
   timeout 120 expect -c "
     set timeout 90
     log_user 0
-    spawn env -i PATH=$::env(PATH) HOME=$::env(HOME) TERM=dumb NODE_NO_WARNINGS=1 $env_exports ami
+    spawn env -i PATH=$::env(PATH) HOME=$::env(HOME) TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 $env_exports ami
     sleep 5
     log_user 1
     $send_script

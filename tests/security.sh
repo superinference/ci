@@ -154,7 +154,7 @@ if has_frito_config; then
   if has_key "groq"; then
     KEY=$(get_key "groq")
     rate_limit_wait
-    PROMPT_OUT=$(timeout 90 env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" NODE_NO_WARNINGS=1 \
+    PROMPT_OUT=$(timeout 90 env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
       GROQ_API_KEY="$KEY" \
       ami --prompt "Say hello" 2>/dev/null) || true
     if [ -n "$PROMPT_OUT" ]; then

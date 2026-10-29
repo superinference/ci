@@ -33,7 +33,7 @@ ami_prompt() {
   local env_args
   env_args=$(provider_env_string "$pid" "$key")
   local output
-  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" NODE_NO_WARNINGS=1 \
+  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     $env_args \
     ami --prompt "$prompt" --max-turns 1 "${model_args[@]}" 2>/dev/null) || true
   if [ -z "$output" ]; then
@@ -158,7 +158,7 @@ for pid in "${ALL_PROVIDERS[@]}"; do
     _k=$(get_key "$pid")
     _m=$(pick_model "$pid")
     _env_args=$(provider_env_string "$pid" "$_k")
-    _out=$(timeout 30 env -i PATH="$PATH" HOME="$HOME" TERM="dumb" NODE_NO_WARNINGS=1 \
+    _out=$(timeout 30 env -i PATH="$PATH" HOME="$HOME" TERM="dumb" SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
       $_env_args ami --model "$_m" --max-turns 1 --prompt "hi" 2>/dev/null) || true
     if [ -n "$_out" ] && echo "$_out" | jq -e '(.ok == true) or ((.error // "") | test("max.turns"; "i"))' >/dev/null 2>&1; then
       PROVIDER_LIVE[$pid]=1

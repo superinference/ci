@@ -51,7 +51,7 @@ ami_prompt() {
   local env_args
   env_args=$(provider_env_string "$pid" "$key")
   local output
-  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" NODE_NO_WARNINGS=1 \
+  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     $env_args \
     ami --prompt "$prompt" --max-turns 1 "${model_args[@]}" 2>/dev/null) || true
   if [ -z "$output" ]; then
@@ -157,7 +157,7 @@ for _entry in "${PROVIDERS[@]}"; do
     _k=$(get_key "$_pid")
     _m=$(get_model "$_pid")
     _env_args=$(provider_env_string "$_pid" "$_k")
-    _out=$(timeout 20 env -i PATH="$PATH" HOME="$HOME" TERM="dumb" NODE_NO_WARNINGS=1 \
+    _out=$(timeout 20 env -i PATH="$PATH" HOME="$HOME" TERM="dumb" SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
       $_env_args ami --model "$_m" --prompt "hi" --max-turns 1 2>/dev/null) || true
     if [ -n "$_out" ] && echo "$_out" | jq -e '.ok == true or .error == "Max turns (1) exceeded"' >/dev/null 2>&1; then
       PROVIDER_LIVE[$_pid]=1
@@ -835,7 +835,7 @@ run_cross_provider() {
 
     (
       local output
-      output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" NODE_NO_WARNINGS=1 \
+      output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
         "${env_var}=${k}" \
         ami --model "$m" --prompt "Say ok" 2>/dev/null) || true
       local status

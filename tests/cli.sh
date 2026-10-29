@@ -39,7 +39,7 @@ for _pid in google groq openrouter mistral cerebras; do
       mistral) _ev="MISTRAL_API_KEY" ;;
       cerebras) _ev="CEREBRAS_API_KEY" ;;
     esac
-    _out=$(timeout 20 env -i PATH="$PATH" HOME="$HOME" TERM="dumb" NODE_NO_WARNINGS=1 \
+    _out=$(timeout 20 env -i PATH="$PATH" HOME="$HOME" TERM="dumb" SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
       "${_ev}=${_k}" ami --model "$_m" --prompt "hi" 2>/dev/null) || true
     if [ -n "$_out" ] && echo "$_out" | jq -e '.ok == true' >/dev/null 2>&1; then
       PROVIDER_LIVE[$_pid]=1
@@ -112,7 +112,7 @@ for entry in "GOOGLE_API_KEY|google" "GROQ_API_KEY|groq" "AI_API_KEY|openrouter"
   model=$(get_model "$pid")
 
   pwait "$pid"
-  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" NODE_NO_WARNINGS=1 \
+  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     "${env_var}=${key}" \
     ami --model "$model" --prompt "Say hello" 2>/dev/null) || true
 
@@ -171,7 +171,7 @@ if [ "${PROVIDER_LIVE[groq]:-0}" = "1" ]; then
   key=$(get_key "groq")
   pwait "groq"
 
-  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" NODE_NO_WARNINGS=1 \
+  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     GROQ_API_KEY="$key" \
     ami --model "llama-3.3-70b-versatile" --prompt "Say ok" 2>/dev/null) || true
 
@@ -195,7 +195,7 @@ section "Error: No API Key"
 
 # Use a temp HOME so ~/.ami/frito.json doesn't let AMI bypass the no-key check
 NO_KEY_HOME=$(mktemp -d)
-NO_KEY_OUT=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$NO_KEY_HOME" TERM="${TERM:-dumb}" NODE_NO_WARNINGS=1 \
+NO_KEY_OUT=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$NO_KEY_HOME" TERM="${TERM:-dumb}" SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
   ami --prompt "hello" 2>&1 || true)
 rm -rf "$NO_KEY_HOME"
 
@@ -207,7 +207,7 @@ echo "$NO_KEY_OUT" | grep -q "at Object\.\|TypeError\|ReferenceError" && fail "n
 # ═══════════════════════════════════════════════════════════════════
 section "Flag: --permission-mode"
 
-INVALID_MODE_OUT=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" NODE_NO_WARNINGS=1 \
+INVALID_MODE_OUT=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
   AI_API_KEY="test-key" \
   ami --permission-mode "invalid-mode" --prompt "hi" 2>&1 || true)
 
@@ -227,7 +227,7 @@ echo "  $(dim '▸ Key format detection')"
 if [ "${PROVIDER_LIVE[google]:-0}" = "1" ]; then
   gkey=$(get_key "google")
   pwait "google"
-  gout=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" NODE_NO_WARNINGS=1 \
+  gout=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     GOOGLE_API_KEY="$gkey" \
     ami --prompt "Say ok" 2>/dev/null) || true
   gprov=$(echo "$gout" | jq -r '.provider // empty' 2>/dev/null || true)
@@ -239,7 +239,7 @@ fi
 if [ "${PROVIDER_LIVE[groq]:-0}" = "1" ]; then
   gkey=$(get_key "groq")
   pwait "groq"
-  gout=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" NODE_NO_WARNINGS=1 \
+  gout=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     AI_API_KEY="$gkey" \
     ami --prompt "Say ok" 2>/dev/null) || true
   gprov=$(echo "$gout" | jq -r '.provider // empty' 2>/dev/null || true)
@@ -251,7 +251,7 @@ fi
 if [ "${PROVIDER_LIVE[openrouter]:-0}" = "1" ]; then
   orkey=$(get_key "openrouter")
   pwait "openrouter"
-  orout=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" NODE_NO_WARNINGS=1 \
+  orout=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     AI_API_KEY="$orkey" \
     ami --prompt "Say ok" 2>/dev/null) || true
   orprov=$(echo "$orout" | jq -r '.provider // empty' 2>/dev/null || true)
@@ -265,7 +265,7 @@ echo "  $(dim '▸ Env var name detection')"
 if [ "${PROVIDER_LIVE[groq]:-0}" = "1" ]; then
   gkey=$(get_key "groq")
   pwait "groq"
-  gout=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" NODE_NO_WARNINGS=1 \
+  gout=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     GROQ_API_KEY="$gkey" \
     ami --prompt "Say ok" 2>/dev/null) || true
   gprov=$(echo "$gout" | jq -r '.provider // empty' 2>/dev/null || true)
@@ -277,7 +277,7 @@ fi
 if [ "${PROVIDER_LIVE[mistral]:-0}" = "1" ]; then
   mkey=$(get_key "mistral")
   pwait "mistral"
-  mout=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" NODE_NO_WARNINGS=1 \
+  mout=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     MISTRAL_API_KEY="$mkey" \
     ami --prompt "Say ok" 2>/dev/null) || true
   mprov=$(echo "$mout" | jq -r '.provider // empty' 2>/dev/null || true)
@@ -289,7 +289,7 @@ fi
 if [ "${PROVIDER_LIVE[cerebras]:-0}" = "1" ]; then
   ckey=$(get_key "cerebras")
   pwait "cerebras"
-  cout=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" NODE_NO_WARNINGS=1 \
+  cout=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     CEREBRAS_API_KEY="$ckey" \
     ami --prompt "Say ok" 2>/dev/null) || true
   cprov=$(echo "$cout" | jq -r '.provider // empty' 2>/dev/null || true)
@@ -307,7 +307,7 @@ if [ "${PROVIDER_LIVE[groq]:-0}" = "1" ]; then
   key=$(get_key "groq")
   pwait "groq"
 
-  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" NODE_NO_WARNINGS=1 \
+  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     AI_API_KEY="$key" \
     ami --base-url "https://api.groq.com/openai/v1" --model "llama-3.3-70b-versatile" --prompt "Say ok" 2>/dev/null) || true
 
@@ -333,7 +333,7 @@ if [ "${PROVIDER_LIVE[groq]:-0}" = "1" ]; then
   key=$(get_key "groq")
   pwait "groq"
 
-  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" NODE_NO_WARNINGS=1 \
+  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     ami --api-key "$key" --model "llama-3.3-70b-versatile" --prompt "Say ok" 2>/dev/null) || true
 
   if [ -z "$output" ]; then
@@ -367,7 +367,7 @@ timeout 30 env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" AI_API_KEY="tes
 if [ "${PROVIDER_LIVE[groq]:-0}" = "1" ]; then
   key=$(get_key "groq")
   pwait "groq"
-  timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" NODE_NO_WARNINGS=1 \
+  timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     GROQ_API_KEY="$key" \
     ami --prompt "Say ok" >/dev/null 2>&1
   GOOD_RC=$?
@@ -396,7 +396,7 @@ for entry in "GOOGLE_API_KEY|google" "GROQ_API_KEY|groq" "AI_API_KEY|openrouter"
   model=$(get_model "$pid")
 
   pwait "$pid"
-  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" NODE_NO_WARNINGS=1 \
+  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     "${env_var}=${key}" \
     ami --model "$model" --prompt "Say ok" 2>/dev/null) || true
 
@@ -433,7 +433,7 @@ if [ "${PROVIDER_LIVE[groq]:-0}" = "1" ]; then
   key=$(get_key "groq")
 
   pwait "groq"
-  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" NODE_NO_WARNINGS=1 \
+  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     AI_API_KEY="$key" \
     ami --prompt "Say ok" 2>/dev/null) || true
 
@@ -441,7 +441,7 @@ if [ "${PROVIDER_LIVE[groq]:-0}" = "1" ]; then
   [ "$ok" = "true" ] && pass "precedence: AI_API_KEY works alone" || skip "precedence: AI_API_KEY" "failed"
 
   pwait "groq"
-  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" NODE_NO_WARNINGS=1 \
+  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     AI_API_KEY="invalid-key-xyz" \
     ami --api-key "$key" --model "llama-3.3-70b-versatile" --prompt "Say ok" 2>/dev/null) || true
 
@@ -449,7 +449,7 @@ if [ "${PROVIDER_LIVE[groq]:-0}" = "1" ]; then
   [ "$ok" = "true" ] && pass "precedence: --api-key overrides AI_API_KEY" || skip "precedence: --api-key override"
 
   pwait "groq"
-  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" NODE_NO_WARNINGS=1 \
+  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     GROQ_API_KEY="$key" AI_MODEL="llama-3.3-70b-versatile" \
     ami --prompt "Say ok" 2>/dev/null) || true
 
@@ -457,7 +457,7 @@ if [ "${PROVIDER_LIVE[groq]:-0}" = "1" ]; then
   [ "$model_used" = "llama-3.3-70b-versatile" ] && pass "precedence: AI_MODEL env respected" || skip "precedence: AI_MODEL" "got: $model_used"
 
   pwait "groq"
-  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" NODE_NO_WARNINGS=1 \
+  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     GROQ_API_KEY="$key" AI_MODEL="wrong-model" \
     ami --model "llama-3.3-70b-versatile" --prompt "Say ok" 2>/dev/null) || true
 
