@@ -41,7 +41,7 @@ for _candidate in deepseek openai alibaba groq openrouter mistral cerebras googl
     _m=$(pick_model "$_candidate")
     _env_args=$(provider_env_string "$_candidate" "$_k")
     _out=$(timeout 30 env -i PATH="$PATH" HOME="$HOME" TERM="dumb" NODE_NO_WARNINGS=1 \
-      $_env_args ami --model "$_m" --max-turns 1 --prompt "hi" 2>/dev/null) || true
+      $_env_args ami --model "$_m" --max-turns 4 --prompt "hi" 2>/dev/null) || true
     if [ -n "$_out" ] && echo "$_out" | jq -e '(.ok == true) or ((.error // "") | test("max.turns"; "i"))' >/dev/null 2>&1; then
       TOOL_PID="$_candidate"
       TOOL_KEY="$_k"
@@ -70,7 +70,7 @@ for _candidate in deepseek openai alibaba groq openrouter mistral cerebras googl
     _m=$(pick_model "$_candidate")
     _env_args=$(provider_env_string "$_candidate" "$_k")
     _out=$(timeout 30 env -i PATH="$PATH" HOME="$HOME" TERM="dumb" NODE_NO_WARNINGS=1 \
-      $_env_args ami --model "$_m" --max-turns 1 --prompt "hi" 2>/dev/null) || true
+      $_env_args ami --model "$_m" --max-turns 4 --prompt "hi" 2>/dev/null) || true
     if [ -n "$_out" ] && echo "$_out" | jq -e '(.ok == true) or ((.error // "") | test("max.turns"; "i"))' >/dev/null 2>&1; then
       SECOND_PID="$_candidate"
       SECOND_KEY="$_k"

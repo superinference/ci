@@ -35,7 +35,7 @@ ami_prompt() {
   local output
   output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
     $env_args \
-    ami --prompt "$prompt" --max-turns 1 "${model_args[@]}" 2>/dev/null) || true
+    ami --prompt "$prompt" --max-turns 4 "${model_args[@]}" 2>/dev/null) || true
   if [ -z "$output" ]; then
     echo '{"ok":false,"error":"no output from cli"}'
   else
@@ -61,7 +61,7 @@ assert_ami_response() {
   elapsed=$(echo "$result" | jq -r '.elapsedMs // 0')
   error=$(echo "$result" | jq -r '.error // empty')
 
-  # Max turns exceeded is success — we use --max-turns 1 for cheap tests
+  # Max turns exceeded is success — we use --max-turns 4 for cheap tests
   if [ "$ok" != "true" ] && echo "$error" | grep -qi "max.turns"; then
     pass "$prefix: ok (max-turns capped)"
     if [ -n "$response" ] && [ "$response" != "null" ]; then
@@ -159,7 +159,7 @@ for pid in "${ALL_PROVIDERS[@]}"; do
     _m=$(pick_model "$pid")
     _env_args=$(provider_env_string "$pid" "$_k")
     _out=$(timeout 30 env -i PATH="$PATH" HOME="$HOME" TERM="dumb" SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
-      $_env_args ami --model "$_m" --max-turns 1 --prompt "hi" 2>/dev/null) || true
+      $_env_args ami --model "$_m" --max-turns 4 --prompt "hi" 2>/dev/null) || true
     if [ -n "$_out" ] && echo "$_out" | jq -e '(.ok == true) or ((.error // "") | test("max.turns"; "i"))' >/dev/null 2>&1; then
       PROVIDER_LIVE[$pid]=1
       PROVIDER_LIVE_MODEL[$pid]="$_m"
