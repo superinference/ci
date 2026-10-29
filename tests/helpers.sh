@@ -23,40 +23,40 @@ bold()   { printf "\033[1m%s\033[0m" "$*"; }
 pass() {
   TOTAL_COUNT=$((TOTAL_COUNT + 1))
   PASS_COUNT=$((PASS_COUNT + 1))
-  printf "  $(green PASS)  %s\n" "$1"
+  printf "  $(green PASS)  %s\n" "$1" >&2
 }
 
 fail() {
   TOTAL_COUNT=$((TOTAL_COUNT + 1))
   FAIL_COUNT=$((FAIL_COUNT + 1))
-  printf "  $(red FAIL)  %s" "$1"
-  [ -n "${2:-}" ] && printf " — $(dim '%s')" "$2"
-  printf "\n"
+  printf "  $(red FAIL)  %s" "$1" >&2
+  [ -n "${2:-}" ] && printf " — $(dim '%s')" "$2" >&2
+  printf "\n" >&2
 }
 
 skip() {
   TOTAL_COUNT=$((TOTAL_COUNT + 1))
   SKIP_COUNT=$((SKIP_COUNT + 1))
-  printf "  $(yellow SKIP)  %s" "$1"
-  [ -n "${2:-}" ] && printf " — $(dim '%s')" "$2"
-  printf "\n"
+  printf "  $(yellow SKIP)  %s" "$1" >&2
+  [ -n "${2:-}" ] && printf " — $(dim '%s')" "$2" >&2
+  printf "\n" >&2
 }
 
 summary() {
-  echo ""
-  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo "" >&2
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&2
   printf "  Total: %d  |  $(green 'Pass: %d')  |  $(red 'Fail: %d')  |  $(yellow 'Skip: %d')\n" \
-    "$TOTAL_COUNT" "$PASS_COUNT" "$FAIL_COUNT" "$SKIP_COUNT"
-  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  echo ""
+    "$TOTAL_COUNT" "$PASS_COUNT" "$FAIL_COUNT" "$SKIP_COUNT" >&2
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&2
+  echo "" >&2
   if [ "$FAIL_COUNT" -gt 0 ]; then
     exit 1
   fi
 }
 
 section() {
-  echo ""
-  echo "$(bold "── $1 ──")"
+  echo "" >&2
+  echo "$(bold "── $1 ──")" >&2
 }
 
 # ─── FRITO config access ─────────────────────────────────────────
