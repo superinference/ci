@@ -86,6 +86,22 @@ DISCOVERED_COMMANDS=(
 )
 DISCOVERED_COUNT=${#DISCOVERED_COMMANDS[@]}
 
+# ── Sharding support ────────────────────────────────────────────
+SHARD=${SHARD:-0}
+SHARD_TOTAL=${SHARD_TOTAL:-0}
+
+if [ "$SHARD_TOTAL" -gt 0 ]; then
+  SHARD_COMMANDS=()
+  for i in "${!DISCOVERED_COMMANDS[@]}"; do
+    if [ $(( (i % SHARD_TOTAL) + 1 )) -eq "$SHARD" ]; then
+      SHARD_COMMANDS+=("${DISCOVERED_COMMANDS[$i]}")
+    fi
+  done
+  echo "  $(dim "Shard $SHARD/$SHARD_TOTAL: ${#SHARD_COMMANDS[@]}/$DISCOVERED_COUNT commands")"
+  DISCOVERED_COMMANDS=("${SHARD_COMMANDS[@]}")
+  DISCOVERED_COUNT=${#DISCOVERED_COMMANDS[@]}
+fi
+
 pass "Command discovery: $DISCOVERED_COUNT commands registered"
 echo "  $(dim "Commands: ${DISCOVERED_COMMANDS[*]}")"
 
