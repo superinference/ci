@@ -1364,6 +1364,15 @@ else
   fi
 fi
 
+# --introspect: JSON feature manifest
+echo "  $(dim '▸ --introspect flag')"
+intro_out=$(ami --introspect 2>&1) || true
+if echo "$intro_out" | jq -e '.version and .providers and .commands and .tools and .flags' >/dev/null 2>&1; then
+  pass "introspect: valid JSON manifest"
+else
+  fail "introspect: valid JSON manifest" "output: ${intro_out:0:200}"
+fi
+
 # --config: custom config path
 echo "  $(dim '▸ --config flag')"
 cfg_out=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" $ENV_BASE \
@@ -1518,6 +1527,7 @@ TESTED_FLAGS["--max-turns"]=1
 TESTED_FLAGS["--detached"]=1
 TESTED_FLAGS["--quiet"]=1
 TESTED_FLAGS["--completions"]=1
+TESTED_FLAGS["--introspect"]=1
 TESTED_FLAGS["--config"]=1
 TESTED_FLAGS["--context-file"]=1
 TESTED_FLAGS["--deny"]=1
