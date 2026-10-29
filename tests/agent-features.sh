@@ -30,19 +30,29 @@ pass "ami binary found ($AMI_BIN)"
 # Find a working provider for tool/agent tests
 # ═══════════════════════════════════════════════════════════════════
 
+# probe_provider: returns 0 if the provider responds with ANY valid JSON
+# (ok=true, max-turns error, or transient error all count — the provider is
+# reachable). Only truly dead providers (timeout, no output, non-JSON) fail.
+probe_provider() {
+  local pid="$1" key="$2" model="$3" env_args="$4"
+  local _out
+  _out=$(timeout $PROBE_TIMEOUT env -i PATH="$PATH" HOME="$HOME" $ENV_BASE \
+    $env_args ami --model "$model" --max-turns $MAX_TURNS_PROBE --prompt "hi" 2>/dev/null) || true
+  [ -n "$_out" ] && echo "$_out" | jq . >/dev/null 2>&1
+}
+
 TOOL_PID=""
 TOOL_KEY=""
 TOOL_MODEL=""
 TOOL_ENV=""
 
-for _candidate in deepseek openai alibaba groq openrouter mistral cerebras google nvidia; do
+# OpenAI first — cheap (gpt-4o-mini) and reliable. Then other providers.
+for _candidate in openai deepseek alibaba groq openrouter mistral cerebras google nvidia; do
   if has_key "$_candidate"; then
     _k=$(get_key "$_candidate")
     _m=$(pick_model "$_candidate")
     _env_args=$(provider_env_string "$_candidate" "$_k")
-    _out=$(timeout $PROBE_TIMEOUT env -i PATH="$PATH" HOME="$HOME" $ENV_BASE \
-      $_env_args ami --model "$_m" --max-turns $MAX_TURNS_PROBE --prompt "hi" 2>/dev/null) || true
-    if [ -n "$_out" ] && echo "$_out" | jq -e '(.ok == true) or ((.error // "") | test("max.turns"; "i"))' >/dev/null 2>&1; then
+    if probe_provider "$_candidate" "$_k" "$_m" "$_env_args"; then
       TOOL_PID="$_candidate"
       TOOL_KEY="$_k"
       TOOL_MODEL="$_m"
@@ -63,15 +73,13 @@ SECOND_KEY=""
 SECOND_MODEL=""
 SECOND_ENV=""
 
-for _candidate in deepseek openai alibaba groq openrouter mistral cerebras google nvidia; do
+for _candidate in openai deepseek alibaba groq openrouter mistral cerebras google nvidia; do
   [ "$_candidate" = "$TOOL_PID" ] && continue
   if has_key "$_candidate"; then
     _k=$(get_key "$_candidate")
     _m=$(pick_model "$_candidate")
     _env_args=$(provider_env_string "$_candidate" "$_k")
-    _out=$(timeout $PROBE_TIMEOUT env -i PATH="$PATH" HOME="$HOME" $ENV_BASE \
-      $_env_args ami --model "$_m" --max-turns $MAX_TURNS_PROBE --prompt "hi" 2>/dev/null) || true
-    if [ -n "$_out" ] && echo "$_out" | jq -e '(.ok == true) or ((.error // "") | test("max.turns"; "i"))' >/dev/null 2>&1; then
+    if probe_provider "$_candidate" "$_k" "$_m" "$_env_args"; then
       SECOND_PID="$_candidate"
       SECOND_KEY="$_k"
       SECOND_MODEL="$_m"
@@ -794,7 +802,7 @@ section "Provider Flag"
 
 echo "  $(dim '▸ --provider with explicit provider')"
 
-for pid in google groq mistral openrouter deepseek openai; do
+for pid in openai deepseek groq google openrouter mistral; do
   if ! has_key "$pid"; then
     skip "provider-flag/$pid: provider field" "no key"
     continue
