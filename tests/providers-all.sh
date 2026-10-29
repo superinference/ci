@@ -160,7 +160,7 @@ for pid in "${ALL_PROVIDERS[@]}"; do
     _env_args=$(provider_env_string "$pid" "$_k")
     _out=$(timeout $PROBE_TIMEOUT env -i PATH="$PATH" HOME="$HOME" $ENV_BASE \
       $_env_args ami --model "$_m" --max-turns $MAX_TURNS_PROBE --prompt "hi" 2>/dev/null) || true
-    if [ -n "$_out" ] && echo "$_out" | jq . >/dev/null 2>&1; then
+    if [ -n "$_out" ] && echo "$_out" | jq -e '(.ok == true) or ((.error // "") | test("max.turns|429|rate.limit|too.many|quota|resource.exhausted|overloaded"; "i"))' >/dev/null 2>&1; then
       PROVIDER_LIVE[$pid]=1
       PROVIDER_LIVE_MODEL[$pid]="$_m"
       echo "  $(dim "▸ $pid: live (model: $_m)")"
