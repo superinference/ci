@@ -3,6 +3,9 @@
 # No source code from ami-ui/common/core — only curl + jq
 set -euo pipefail
 
+SCRIPT_DIR_HELPERS="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR_HELPERS/variables.sh"
+
 FRITO_CONFIG="${FRITO_CONFIG:-$HOME/.ami/frito.json}"
 # FRITO_JSON env var: pass config as raw JSON (CI secret) — avoids writing credentials to disk.
 # When set, frito_jq() reads from it; when unset, reads from $FRITO_CONFIG file.
@@ -392,8 +395,7 @@ assert_valid_json() {
 # ─── Rate limiting ───────────────────────────────────────────────
 
 LAST_REQUEST_TIME=0
-MIN_REQUEST_INTERVAL=3
-GOOGLE_REQUEST_INTERVAL=5
+# MIN_REQUEST_INTERVAL and GOOGLE_REQUEST_INTERVAL come from variables.sh
 LAST_GOOGLE_TIME=0
 
 rate_limit_wait() {
@@ -441,14 +443,14 @@ ami_slash() {
   for pair in "$@"; do
     env_exports="$env_exports $pair"
   done
-  timeout 60 expect -c "
-    set timeout 45
+  timeout $EXPECT_OUTER_TIMEOUT expect -c "
+    set timeout $EXPECT_INNER_TIMEOUT
     log_user 0
-    spawn env -i PATH=$::env(PATH) HOME=$::env(HOME) TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 $env_exports ami
-    sleep 5
+    spawn env -i PATH=$::env(PATH) HOME=$::env(HOME) $ENV_BASE $env_exports ami
+    sleep $EXPECT_SPAWN_WAIT
     log_user 1
     send \"$cmd\r\"
-    sleep 5
+    sleep $EXPECT_CMD_WAIT
     send \"/quit\r\"
     expect eof
   " 2>&1 | strip_ansi || true
@@ -468,13 +470,13 @@ ami_slash_multi() {
   for cmd in "${commands[@]}"; do
     send_script="${send_script}
     send \"$cmd\r\"
-    sleep 3"
+    sleep $EXPECT_MULTI_CMD_WAIT"
   done
-  timeout 120 expect -c "
-    set timeout 90
+  timeout $EXPECT_MULTI_OUTER_TIMEOUT expect -c "
+    set timeout $EXPECT_MULTI_INNER_TIMEOUT
     log_user 0
-    spawn env -i PATH=$::env(PATH) HOME=$::env(HOME) TERM=dumb SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 $env_exports ami
-    sleep 5
+    spawn env -i PATH=$::env(PATH) HOME=$::env(HOME) $ENV_BASE $env_exports ami
+    sleep $EXPECT_SPAWN_WAIT
     log_user 1
     $send_script
     send \"/quit\r\"

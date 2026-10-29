@@ -11,7 +11,7 @@ if ! has_frito_config; then
   exit 1
 fi
 
-AMI_TIMEOUT=45
+AMI_TIMEOUT=$AMI_TIMEOUT_SHORT
 
 echo ""
 echo "$(bold 'FRITO Provider Tests — 1000+ Assertions')"
@@ -51,9 +51,9 @@ ami_prompt() {
   local env_args
   env_args=$(provider_env_string "$pid" "$key")
   local output
-  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
+  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" $ENV_BASE \
     $env_args \
-    ami --prompt "$prompt" --max-turns 4 "${model_args[@]}" 2>/dev/null) || true
+    ami --prompt "$prompt" --max-turns $MAX_TURNS_PROBE "${model_args[@]}" 2>/dev/null) || true
   if [ -z "$output" ]; then
     echo '{"ok":false,"error":"no output from cli"}'
   else
@@ -157,8 +157,8 @@ for _entry in "${PROVIDERS[@]}"; do
     _k=$(get_key "$_pid")
     _m=$(get_model "$_pid")
     _env_args=$(provider_env_string "$_pid" "$_k")
-    _out=$(timeout 20 env -i PATH="$PATH" HOME="$HOME" TERM="dumb" SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
-      $_env_args ami --model "$_m" --prompt "hi" --max-turns 4 2>/dev/null) || true
+    _out=$(timeout $PROBE_TIMEOUT env -i PATH="$PATH" HOME="$HOME" $ENV_BASE \
+      $_env_args ami --model "$_m" --prompt "hi" --max-turns $MAX_TURNS_PROBE 2>/dev/null) || true
     if [ -n "$_out" ] && echo "$_out" | jq -e '.ok == true or .error == "Max turns (1) exceeded"' >/dev/null 2>&1; then
       PROVIDER_LIVE[$_pid]=1
       echo "  $(dim "▸ $_pid: live")"
@@ -835,7 +835,7 @@ run_cross_provider() {
 
     (
       local output
-      output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
+      output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" $ENV_BASE \
         "${env_var}=${k}" \
         ami --model "$m" --prompt "Say ok" 2>/dev/null) || true
       local status

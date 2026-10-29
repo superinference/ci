@@ -47,8 +47,8 @@ if has_frito_config; then
       _k=$(get_key "$_pid")
       _m=$(pick_model "$_pid")
       _env_args=$(provider_env_string "$_pid" "$_k")
-      _out=$(timeout 30 env -i PATH="$PATH" HOME="$HOME" TERM="dumb" SI_NO_SPLASH=1 NODE_NO_WARNINGS=1 \
-        $_env_args ami --model "$_m" --max-turns 4 --prompt "hi" 2>/dev/null) || true
+      _out=$(timeout $PROBE_TIMEOUT env -i PATH="$PATH" HOME="$HOME" $ENV_BASE \
+        $_env_args ami --model "$_m" --max-turns $MAX_TURNS_PROBE --prompt "hi" 2>/dev/null) || true
       if [ -n "$_out" ] && echo "$_out" | jq -e '(.ok == true) or ((.error // "") | test("max.turns"; "i"))' >/dev/null 2>&1; then
         SLASH_KEY="$_k"
         SLASH_ENV="$_env_args"
