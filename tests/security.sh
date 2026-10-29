@@ -23,7 +23,7 @@ for ext in ts tsx js jsx mjs cjs mts cts; do
 done
 
 [ ! -f "$CI_DIR/tsconfig.json" ] && pass "no-leak: no tsconfig.json" || fail "no-leak: tsconfig.json found"
-[ ! -f "$CI_DIR/package-lock.json" ] && pass "no-leak: no package-lock.json" || skip "no-leak: package-lock.json" "found"
+[ ! -f "$CI_DIR/package-lock.json" ] && pass "no-leak: no package-lock.json" || fail "no-leak: package-lock.json" "found"
 [ ! -d "$CI_DIR/node_modules" ] && pass "no-leak: no node_modules/" || fail "no-leak: node_modules/ found"
 [ ! -d "$CI_DIR/dist" ] && pass "no-leak: no dist/" || fail "no-leak: dist/ found"
 [ ! -d "$CI_DIR/build" ] && pass "no-leak: no build/" || fail "no-leak: build/ found"
@@ -75,10 +75,10 @@ if git -C "$CI_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   if [ -f "$CI_DIR/.gitignore" ]; then
     pass "git: .gitignore exists"
     for pat in ".env" "node_modules" "frito.json"; do
-      grep -q "$pat" "$CI_DIR/.gitignore" 2>/dev/null && pass "git: .gitignore has $pat" || skip "git: .gitignore has $pat"
+      grep -q "$pat" "$CI_DIR/.gitignore" 2>/dev/null && pass "git: .gitignore has $pat" || fail "git: .gitignore has $pat"
     done
   else
-    skip "git: .gitignore exists" "not yet created"
+    fail "git: .gitignore exists" "not yet created"
   fi
 else
   skip "git: history checks" "not a git repo"
@@ -93,7 +93,7 @@ if has_frito_config; then
   # File permissions (only when reading from a file)
   if [ -z "${FRITO_JSON:-}" ] && [ -f "$FRITO_CONFIG" ]; then
     PERMS=$(stat -c%a "$FRITO_CONFIG" 2>/dev/null || stat -f%OLp "$FRITO_CONFIG" 2>/dev/null || echo "unknown")
-    [ "$PERMS" = "600" ] && pass "frito: permissions 600" || skip "frito: permissions" "got: $PERMS"
+    [ "$PERMS" = "600" ] && pass "frito: permissions 600" || fail "frito: permissions" "got: $PERMS"
 
     echo "$FRITO_CONFIG" | grep -q "$HOME" && pass "frito: in home directory" || skip "frito: location" "$FRITO_CONFIG"
 
@@ -181,7 +181,7 @@ if [ -n "$AMI_BIN" ]; then
   if echo "$FILE_TYPE" | grep -qiE "ELF|Mach-O|executable|PE32"; then
     pass "binary: compiled executable"
   elif echo "$FILE_TYPE" | grep -qi "script"; then
-    skip "binary: script wrapper" "$(echo "$FILE_TYPE" | head -c 40)"
+    fail "binary: script wrapper" "$(echo "$FILE_TYPE" | head -c 40)"
   else
     pass "binary: type $(echo "$FILE_TYPE" | head -c 40)"
   fi
@@ -272,13 +272,13 @@ UNEXPECTED=$(find "$CI_DIR" -type f \
 if [ -z "$UNEXPECTED" ]; then
   pass "repo: only expected file types"
 else
-  skip "repo: unexpected files" "$UNEXPECTED"
+  fail "repo: unexpected files" "$UNEXPECTED"
 fi
 
 LARGE=$(find "$CI_DIR" -type f -size +1M -not -path "*/.git/*" 2>/dev/null | head -1 || true)
 [ -z "$LARGE" ] && pass "repo: no files >1MB" || fail "repo: large file" "$LARGE"
 
 HIDDEN=$(find "$CI_DIR" -maxdepth 1 -name ".*" -not -name ".git" -not -name ".github" -not -name ".gitignore" 2>/dev/null | head -1 || true)
-[ -z "$HIDDEN" ] && pass "repo: no unexpected hidden files" || skip "repo: hidden file" "$HIDDEN"
+[ -z "$HIDDEN" ] && pass "repo: no unexpected hidden files" || fail "repo: hidden file" "$HIDDEN"
 
 summary

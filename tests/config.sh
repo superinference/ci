@@ -116,7 +116,7 @@ fi
 section "Enabled Flag"
 
 ENABLED=$(frito_jq -r '.enabled')
-[ "$ENABLED" = "true" ] && pass "enabled: FRITO is enabled" || skip "enabled: FRITO is disabled" "enabled=$ENABLED"
+[ "$ENABLED" = "true" ] || [ "$ENABLED" = "false" ] && pass "enabled: FRITO enabled flag present ($ENABLED)" || fail "enabled: FRITO enabled flag" "expected true/false, got: $ENABLED"
 
 # ═══════════════════════════════════════════════════════════════════
 # SECTION 7: Provider Entries
@@ -166,11 +166,11 @@ for pid in $(frito_jq -r '.providers | keys[]' 2>/dev/null); do
   [ -n "$MODEL_VAL" ] && [ "$MODEL_VAL" != "null" ] && pass "$pid: model set ($MODEL_VAL)" || fail "$pid: model set"
 
   TIER_VAL=$(frito_jq -r ".providers.$pid.tier" 2>/dev/null || echo "")
-  VALID_TIERS="permanent temporary trial free"
+  VALID_TIERS="permanent temporary trial free paid credits"
   if echo "$VALID_TIERS" | grep -qw "$TIER_VAL"; then
     pass "$pid: tier valid ($TIER_VAL)"
   else
-    skip "$pid: tier valid" "got: $TIER_VAL"
+    fail "$pid: tier valid" "got: $TIER_VAL"
   fi
 
   case "$pid" in
@@ -207,14 +207,14 @@ section "File Permissions"
 
 if [ -z "${FRITO_JSON:-}" ] && [ -f "$FRITO_CONFIG" ]; then
   PERMS=$(stat -c%a "$FRITO_CONFIG" 2>/dev/null || stat -f%OLp "$FRITO_CONFIG" 2>/dev/null || echo "unknown")
-  [ "$PERMS" = "600" ] && pass "perms: 600 (owner rw only)" || skip "perms: 600" "got: $PERMS"
+  [ "$PERMS" = "600" ] && pass "perms: 600 (owner rw only)" || fail "perms: 600" "got: $PERMS"
 
   OWNER=$(stat -c%U "$FRITO_CONFIG" 2>/dev/null || stat -f%Su "$FRITO_CONFIG" 2>/dev/null || echo "unknown")
-  [ "$OWNER" = "$(whoami)" ] && pass "perms: owned by current user ($OWNER)" || skip "perms: owner" "$OWNER"
+  [ "$OWNER" = "$(whoami)" ] && pass "perms: owned by current user ($OWNER)" || fail "perms: owner" "$OWNER"
 
   if [ "$PERMS" != "unknown" ]; then
     WORLD_READ=$(echo "$PERMS" | tail -c 2)
-    [ "$WORLD_READ" -eq 0 ] 2>/dev/null && pass "perms: not world-readable" || skip "perms: not world-readable" "last digit: $WORLD_READ"
+    [ "$WORLD_READ" -eq 0 ] 2>/dev/null && pass "perms: not world-readable" || fail "perms: not world-readable" "last digit: $WORLD_READ"
   fi
 
   CONFIG_DIR=$(dirname "$FRITO_CONFIG")

@@ -220,7 +220,7 @@ test_theme() {
   if echo "$out" | grep -qiE "dark|light|term"; then
     pass "/theme: lists theme names"
   else
-    skip "/theme: lists theme names" "${out:0:60}"
+    fail "/theme: lists theme names" "${out:0:60}"
   fi
 }
 

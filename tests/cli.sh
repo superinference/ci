@@ -65,7 +65,7 @@ VERSION_STDOUT=$(ami --version 2>/dev/null)
 [ -n "$VERSION_STDOUT" ] && pass "--version: output on stdout" || fail "--version: output on stdout"
 
 VERSION_ONLY_STDERR=$(ami --version 2>&1 1>/dev/null || true)
-[ -z "$VERSION_ONLY_STDERR" ] && pass "--version: no stderr" || skip "--version: no stderr" "${VERSION_ONLY_STDERR:0:40}"
+[ -z "$VERSION_ONLY_STDERR" ] && pass "--version: no stderr" || fail "--version: no stderr" "${VERSION_ONLY_STDERR:0:40}"
 
 EXTRACTED_VERSION=$(echo "$VERSION_OUT" | grep -oE "[0-9]+\.[0-9]+\.[0-9]+")
 [ -n "$EXTRACTED_VERSION" ] && pass "--version: extracted $EXTRACTED_VERSION" || fail "--version: extract version"
@@ -199,7 +199,7 @@ NO_KEY_OUT=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$NO_KEY_HOME" $ENV_B
   ami --prompt "hello" 2>&1 || true)
 rm -rf "$NO_KEY_HOME"
 
-echo "$NO_KEY_OUT" | grep -qi "api.key\|required\|error" && pass "no-key: error message" || skip "no-key: error message" "${NO_KEY_OUT:0:60}"
+echo "$NO_KEY_OUT" | grep -qi "api.key\|required\|error" && pass "no-key: error message" || fail "no-key: error message" "${NO_KEY_OUT:0:60}"
 echo "$NO_KEY_OUT" | grep -q "at Object\.\|TypeError\|ReferenceError" && fail "no-key: no stack trace" || pass "no-key: no stack trace"
 
 # ═══════════════════════════════════════════════════════════════════
@@ -211,7 +211,7 @@ INVALID_MODE_OUT=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" $ENV_BA
   AI_API_KEY="test-key" \
   ami --permission-mode "invalid-mode" --prompt "hi" 2>&1 || true)
 
-echo "$INVALID_MODE_OUT" | grep -qi "invalid\|error\|must be" && pass "--permission-mode: invalid rejects" || skip "--permission-mode: invalid rejects" "${INVALID_MODE_OUT:0:60}"
+echo "$INVALID_MODE_OUT" | grep -qi "invalid\|error\|must be" && pass "--permission-mode: invalid rejects" || fail "--permission-mode: invalid rejects" "${INVALID_MODE_OUT:0:60}"
 
 for mode in "ask" "auto-allow" "deny-all"; do
   echo "$HELP_OUT" | grep -q "$mode" && pass "--permission-mode: $mode documented" || fail "--permission-mode: $mode documented"
@@ -358,11 +358,11 @@ ami --help >/dev/null 2>&1 && pass "exit: --help → 0" || fail "exit: --help �
 
 NO_KEY_RC=0
 timeout 30 env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" ami --prompt "hi" >/dev/null 2>&1 || NO_KEY_RC=$?
-[ "$NO_KEY_RC" -ne 0 ] && pass "exit: no key → non-zero ($NO_KEY_RC)" || skip "exit: no key → non-zero"
+[ "$NO_KEY_RC" -ne 0 ] && pass "exit: no key → non-zero ($NO_KEY_RC)" || fail "exit: no key → non-zero"
 
 BAD_MODE_RC=0
 timeout 30 env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" AI_API_KEY="test" ami --permission-mode "bad" --prompt "hi" >/dev/null 2>&1 || BAD_MODE_RC=$?
-[ "$BAD_MODE_RC" -ne 0 ] && pass "exit: bad mode → non-zero ($BAD_MODE_RC)" || skip "exit: bad mode → non-zero"
+[ "$BAD_MODE_RC" -ne 0 ] && pass "exit: bad mode → non-zero ($BAD_MODE_RC)" || fail "exit: bad mode → non-zero"
 
 if [ "${PROVIDER_LIVE[groq]:-0}" = "1" ]; then
   key=$(get_key "groq")
