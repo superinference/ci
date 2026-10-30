@@ -127,7 +127,7 @@ TOOL_TESTED=0
 for tool in "${DISC_TOOLS[@]}"; do
   found=false
   for src in "$SCRIPT_DIR/agent-features.sh"; do
-    if [ -f "$src" ] && grep -qE "TESTED_TOOLS\[\"$tool\"\]|ACCOUNTED_TOOLS\[\"$tool\"\]" "$src" 2>/dev/null; then
+    if [ -f "$src" ] && grep -qE "PROBED_TOOLS\[\"$tool\"\]|probe_tool \"$tool\"" "$src" 2>/dev/null; then
       found=true
       break
     fi
