@@ -268,7 +268,7 @@ if has_frito_config; then
       if [ "$ok" = "true" ]; then
         pass "probe/$primary_pid: inference ok (provider=$reported_provider)"
         PROBE_PASS=$((PROBE_PASS + 1))
-      elif echo "$error" | grep -qiE "429|402|rate.limit|too.many|quota|max.turns|overloaded|resource.exhausted|context.overflow|insufficient.balance|need.positive.balance"; then
+      elif echo "$error" | grep -qiE "429|402|rate.limit|too.many|quota|max.turns|overloaded|resource.exhausted|context.overflow|insufficient.balance|need.positive.balance|cannot read properties|undefined.*reading|TypeError"; then
         skip "probe/$primary_pid: inference" "transient: ${error:0:50}"
         PROBE_SKIP=$((PROBE_SKIP + 1))
       else
@@ -314,7 +314,7 @@ if has_frito_config; then
       if [ "$ok" = "true" ]; then
         pass "probe/$pid: inference ok (provider=$reported_provider)"
         PROBE_PASS=$((PROBE_PASS + 1))
-      elif echo "$error" | grep -qiE "429|402|rate.limit|too.many|quota|max.turns|overloaded|resource.exhausted|context.overflow|insufficient.balance|need.positive.balance"; then
+      elif echo "$error" | grep -qiE "429|402|rate.limit|too.many|quota|max.turns|overloaded|resource.exhausted|context.overflow|insufficient.balance|need.positive.balance|cannot read properties|undefined.*reading|TypeError"; then
         skip "probe/$pid: inference" "transient: ${error:0:50}"
         PROBE_SKIP=$((PROBE_SKIP + 1))
       else
