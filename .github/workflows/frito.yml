@@ -178,6 +178,31 @@ jobs:
           export PATH="$HOME/.local/bin:$PATH"
           bash tests/provider-sdk-parity.sh
 
+  pentest-mcp:
+    runs-on: ubuntu-latest
+    needs: install
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y jq ncat
+
+      - name: Install ami
+        run: |
+          curl -fsSL https://www.superinference.org/install.sh | bash
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Pre-pull Kali MCP image
+        run: docker pull docker.io/cyberillo/kali-mcp-server:latest
+
+      - name: "Suite: Pentest MCP (Kali container, nmap, nikto)"
+        env:
+          FRITO_JSON: ${{ secrets.AMI_FRITO }}
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          bash tests/pentest-mcp.sh
+
   agent-features:
     runs-on: ubuntu-latest
     needs: install
