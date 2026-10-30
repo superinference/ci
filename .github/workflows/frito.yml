@@ -156,6 +156,28 @@ jobs:
           export PATH="$HOME/.local/bin:$PATH"
           bash tests/slash-commands.sh
 
+  provider-sdk-parity:
+    runs-on: ubuntu-latest
+    needs: install
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Install ami
+        run: |
+          curl -fsSL https://www.superinference.org/install.sh | bash
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: "Suite: Provider ↔ Vercel SDK Parity Gate"
+        env:
+          FRITO_JSON: ${{ secrets.AMI_FRITO }}
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          bash tests/provider-sdk-parity.sh
+
   agent-features:
     runs-on: ubuntu-latest
     needs: install
