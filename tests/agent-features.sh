@@ -105,16 +105,18 @@ echo ""
 # Helper: run a lightweight tool inference probe.
 # Sends a prompt, accepts any valid response (ok=true → pass, transient → skip, error → skip).
 # The goal is to exercise the tool invocation path, not verify correctness.
-# Usage: probe_tool "tool_name" "prompt text"
+# Usage: probe_tool "tool_name" "prompt text" [timeout_override] [max_turns_override]
 probe_tool() {
   local tname="$1" prompt="$2"
+  local tool_timeout="${3:-$AMI_TIMEOUT}"
+  local tool_turns="${4:-$MAX_TURNS_TOOL}"
   PROBED_TOOLS["$tname"]=1
   echo "  $(dim "▸ $tname tool")" >&2
   pwait "$TOOL_PID"
   local output
-  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" $ENV_BASE \
+  output=$(timeout "$tool_timeout" env -i PATH="$PATH" HOME="$HOME" $ENV_BASE \
     $TOOL_ENV \
-    $AMI --model "$TOOL_MODEL" --permission-mode auto-allow --max-turns $MAX_TURNS_TOOL \
+    $AMI --model "$TOOL_MODEL" --permission-mode auto-allow --max-turns "$tool_turns" \
     --prompt "$prompt" 2>/dev/null) || true
 
   if [ -z "$output" ]; then
@@ -805,43 +807,9 @@ HAYSTACK
     fi
   fi
 
-  # ── notebook_edit tool ─────────────────────────────────────────
-  PROBED_TOOLS["notebook_edit"]=1
-  echo "  $(dim '▸ notebook_edit tool')"
-  NB_FILE="$TOOL_TEST_DIR/test-notebook.ipynb"
-  pwait "$TOOL_PID"
-  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" $ENV_BASE \
-    $TOOL_ENV \
-    $AMI --model "$TOOL_MODEL" --permission-mode auto-allow --max-turns $MAX_TURNS_TOOL \
-    --prompt "Create a Jupyter notebook at $NB_FILE with a single Python code cell containing: print('FRITO_NB_OK')" 2>/dev/null) || true
-
-  if [ -z "$output" ]; then
-    skip "tool/notebook_edit: output" "timed out or empty"
-    skip "tool/notebook_edit: file created" "no output"
-  elif ! echo "$output" | jq . >/dev/null 2>&1; then
-    skip "tool/notebook_edit: valid JSON" "non-JSON: ${output:0:60}"
-    skip "tool/notebook_edit: file created" "non-JSON"
-  else
-    ok=$(echo "$output" | jq -r '.ok')
-    # notebook_edit: check actual file output regardless of ok — model may
-    # exhaust turns verifying the file it already created successfully.
-    if [ -f "$NB_FILE" ]; then
-      pass "tool/notebook_edit: file created"
-      content=$(cat "$NB_FILE" 2>/dev/null || true)
-      echo "$content" | grep -q "FRITO_NB_OK" && pass "tool/notebook_edit: content correct" || skip "tool/notebook_edit: content correct" "content not found"
-    elif [ "$ok" = "true" ]; then
-      skip "tool/notebook_edit: file created" "ok=true but file not found"
-    elif is_transient "$output"; then
-      skip "tool/notebook_edit: ok" "transient"
-      skip "tool/notebook_edit: file created" "transient"
-    else
-      err=$(echo "$output" | jq -r '.error // empty')
-      skip "tool/notebook_edit: ok" "${err:0:60}"
-      skip "tool/notebook_edit: file created" "inference issue"
-    fi
-  fi
-
   # ── git_commit tool (in isolated temp repo) ────────────────────
+  # Run before notebook_edit — notebook burns many turns and can
+  # trigger rate limits that starve subsequent tests.
   PROBED_TOOLS["git_commit"]=1
   echo "  $(dim '▸ git_commit tool')"
   GIT_TEST_DIR="$(pwd)/.frito-git-test-$$"
@@ -883,6 +851,42 @@ HAYSTACK
     fi
   fi
   rm -rf "$GIT_TEST_DIR"
+
+  # ── notebook_edit tool ─────────────────────────────────────────
+  PROBED_TOOLS["notebook_edit"]=1
+  echo "  $(dim '▸ notebook_edit tool')"
+  NB_FILE="$TOOL_TEST_DIR/test-notebook.ipynb"
+  pwait "$TOOL_PID"
+  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" $ENV_BASE \
+    $TOOL_ENV \
+    $AMI --model "$TOOL_MODEL" --permission-mode auto-allow --max-turns $MAX_TURNS_TOOL \
+    --prompt "Create a Jupyter notebook at $NB_FILE with a single Python code cell containing: print('FRITO_NB_OK')" 2>/dev/null) || true
+
+  if [ -z "$output" ]; then
+    skip "tool/notebook_edit: output" "timed out or empty"
+    skip "tool/notebook_edit: file created" "no output"
+  elif ! echo "$output" | jq . >/dev/null 2>&1; then
+    skip "tool/notebook_edit: valid JSON" "non-JSON: ${output:0:60}"
+    skip "tool/notebook_edit: file created" "non-JSON"
+  else
+    ok=$(echo "$output" | jq -r '.ok')
+    # notebook_edit: check actual file output regardless of ok — model may
+    # exhaust turns verifying the file it already created successfully.
+    if [ -f "$NB_FILE" ]; then
+      pass "tool/notebook_edit: file created"
+      content=$(cat "$NB_FILE" 2>/dev/null || true)
+      echo "$content" | grep -q "FRITO_NB_OK" && pass "tool/notebook_edit: content correct" || skip "tool/notebook_edit: content correct" "content not found"
+    elif [ "$ok" = "true" ]; then
+      skip "tool/notebook_edit: file created" "ok=true but file not found"
+    elif is_transient "$output"; then
+      skip "tool/notebook_edit: ok" "transient"
+      skip "tool/notebook_edit: file created" "transient"
+    else
+      err=$(echo "$output" | jq -r '.error // empty')
+      skip "tool/notebook_edit: ok" "${err:0:60}"
+      skip "tool/notebook_edit: file created" "inference issue"
+    fi
+  fi
 
   # ── search_symbols tool ────────────────────────────────────────
   PROBED_TOOLS["search_symbols"]=1
@@ -940,7 +944,8 @@ PYEOF
   # (the agent handles them gracefully), but they ARE probed.
 
   probe_tool "task" \
-    "Create a sub-task to run the command 'echo task-probe-ok' and tell me the result."
+    "Create a sub-task to run the command 'echo task-probe-ok' and tell me the result." \
+    180 12
 
   probe_tool "task_tracker" \
     "Show me the current status of any running tasks or task trackers."
