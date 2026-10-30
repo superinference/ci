@@ -16,7 +16,8 @@ PROBE_TIMEOUT=30
 # MAX_TURNS_PROBE: used during liveness probes (just needs one successful reply).
 MAX_TURNS_PROBE=4
 # MAX_TURNS_TOOL: used during tool-use tests (model calls tool, gets result, replies).
-MAX_TURNS_TOOL=3
+# Needs ≥4: call tool → read result → (optional retry) → reply.
+MAX_TURNS_TOOL=5
 
 # ─── Environment baseline ───────────────────────────────────────
 # Every `env -i` invocation should include these to suppress TUI chrome and warnings.
