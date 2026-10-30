@@ -32,7 +32,7 @@ if [ -n "$AMI_BIN" ]; then
     mapfile -t DISC_FLAGS < <(echo "$INTROSPECT_JSON" | jq -r '.flags[].name' | sed 's/^/--/')
     mapfile -t DISC_PERMISSION_MODES < <(echo "$INTROSPECT_JSON" | jq -r '.permissionModes[]')
     mapfile -t DISC_THINKING_LEVELS < <(echo "$INTROSPECT_JSON" | jq -r '.thinkingLevels[]')
-    mapfile -t DISC_PERSONAS < <(echo "$INTROSPECT_JSON" | jq -r '.personas[]')
+    mapfile -t DISC_PERSONAS < <(echo "$INTROSPECT_JSON" | jq -r '.personas[].name')
     mapfile -t DISC_OUTPUT_FORMATS < <(echo "$INTROSPECT_JSON" | jq -r '.outputFormats[]')
   fi
 

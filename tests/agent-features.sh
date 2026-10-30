@@ -1381,6 +1381,54 @@ else
   fail "introspect: valid JSON manifest" "output: ${intro_out:0:200}"
 fi
 
+# ── Persona introspect validation ──────────────────────────────
+echo "  $(dim '▸ Persona introspect validation')"
+if echo "$intro_out" | jq -e '.personas' >/dev/null 2>&1; then
+  PERSONA_COUNT=$(echo "$intro_out" | jq '.personas | length')
+  pass "introspect/personas: $PERSONA_COUNT personas found"
+
+  for pname in code pentest sre research; do
+    if echo "$intro_out" | jq -e --arg n "$pname" '.personas[] | select(.name == $n)' >/dev/null 2>&1; then
+      pass "introspect/persona/$pname: present"
+    else
+      fail "introspect/persona/$pname: missing"
+    fi
+  done
+
+  # Validate pentest persona has MCP config (when introspect includes it)
+  if echo "$intro_out" | jq -e '.personas[] | select(.name == "pentest") | .mcpServers' >/dev/null 2>&1; then
+    KALI_IMAGE=$(echo "$intro_out" | jq -r '.personas[] | select(.name == "pentest") | .mcpServers[] | select(.name == "kali") | .image // empty')
+    if [ -n "$KALI_IMAGE" ]; then
+      pass "introspect/pentest/kali: image=$KALI_IMAGE"
+      echo "$KALI_IMAGE" | grep -q "kali-mcp-server" && pass "introspect/pentest/kali: correct image" || fail "introspect/pentest/kali: wrong image" "$KALI_IMAGE"
+    else
+      skip "introspect/pentest/kali: image" "mcpServers present but kali not found"
+    fi
+
+    # Validate autoAllowPatterns include security tools
+    if echo "$intro_out" | jq -e '.personas[] | select(.name == "pentest") | .autoAllowPatterns' >/dev/null 2>&1; then
+      for tool_pat in "nmap*" "nikto*" "sqlmap*" "gobuster*" "hydra*"; do
+        if echo "$intro_out" | jq -e --arg p "$tool_pat" '.personas[] | select(.name == "pentest") | .autoAllowPatterns[] | select(. == $p)' >/dev/null 2>&1; then
+          pass "introspect/pentest/autoAllow: $tool_pat"
+        else
+          fail "introspect/pentest/autoAllow: $tool_pat missing"
+        fi
+      done
+    fi
+
+    # Validate mcpAutoAllowPatterns
+    if echo "$intro_out" | jq -e '.personas[] | select(.name == "pentest") | .mcpAutoAllowPatterns[] | select(. == "mcp__kali__*")' >/dev/null 2>&1; then
+      pass "introspect/pentest/mcpAutoAllow: mcp__kali__*"
+    else
+      skip "introspect/pentest/mcpAutoAllow" "not in introspect yet"
+    fi
+  else
+    skip "introspect/pentest/mcp" "persona details not in introspect manifest (UI enhancement pending)"
+  fi
+else
+  skip "introspect/personas" "not in introspect output"
+fi
+
 # --config: custom config path
 echo "  $(dim '▸ --config flag')"
 cfg_out=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" $ENV_BASE \
@@ -1548,6 +1596,7 @@ TESTED_FLAGS["--run-command"]=1
 TESTED_FLAGS["--scrollback-lines"]=1
 TESTED_FLAGS["--session-id"]=1
 TESTED_FLAGS["--thinking"]=1
+TESTED_FLAGS["--persona"]=1
 
 UNTESTED_FLAGS=0
 for flag in $DOCUMENTED_FLAGS; do
@@ -1563,6 +1612,84 @@ if [ "$UNTESTED_FLAGS" -gt 0 ]; then
   fail "Flag coverage" "$UNTESTED_FLAGS flag(s) documented but not tested"
 else
   pass "Flag coverage: all documented flags have test coverage"
+fi
+
+# ═══════════════════════════════════════════════════════════════════
+# DYNAMIC TOOL COVERAGE GATE
+# Every registered tool must be either inference-tested or accounted for.
+# Adding a tool to createDefaultTools() without updating this gate fails CI.
+# ═══════════════════════════════════════════════════════════════════
+
+section "Tool Coverage Gate"
+
+# Tools exercised via inference in this test suite
+declare -A TESTED_TOOLS
+TESTED_TOOLS["bash"]=1
+TESTED_TOOLS["file_read"]=1
+
+# Tools accounted for — unit-tested in core/ or require interactive/complex setup
+declare -A ACCOUNTED_TOOLS
+ACCOUNTED_TOOLS["file_edit"]="unit-tested: core/test/file-edit.test.ts"
+ACCOUNTED_TOOLS["grep"]="unit-tested: core/test/grep.test.ts"
+ACCOUNTED_TOOLS["glob"]="unit-tested: core/test/glob.test.ts"
+ACCOUNTED_TOOLS["list_dir"]="unit-tested: core/test/list-dir.test.ts"
+ACCOUNTED_TOOLS["web_fetch"]="unit-tested: core/test/web-fetch.test.ts"
+ACCOUNTED_TOOLS["web_search"]="unit-tested: core/test/web-search.test.ts"
+ACCOUNTED_TOOLS["notebook_edit"]="unit-tested: core/test/notebook-edit.test.ts"
+ACCOUNTED_TOOLS["search_symbols"]="unit-tested: core/test/search-symbols.test.ts"
+ACCOUNTED_TOOLS["task"]="unit-tested: core/test/task.test.ts"
+ACCOUNTED_TOOLS["tool_search"]="unit-tested: core/test/tool-search.test.ts"
+ACCOUNTED_TOOLS["AskUserQuestion"]="interactive — unit-tested: core/test/ask-user.test.ts"
+ACCOUNTED_TOOLS["git_commit"]="unit-tested: core/test/git-commit.test.ts"
+ACCOUNTED_TOOLS["task_tracker"]="unit-tested: core/test/task-tracker.test.ts"
+ACCOUNTED_TOOLS["plan_mode"]="interactive — unit-tested: core/test/plan-mode.test.ts"
+ACCOUNTED_TOOLS["task_complete"]="sub-agent — unit-tested: core/test/task-complete.test.ts"
+ACCOUNTED_TOOLS["task_output"]="sub-agent — unit-tested: core/test/task-output.test.ts"
+ACCOUNTED_TOOLS["task_kill"]="sub-agent — unit-tested: core/test/task-kill.test.ts"
+ACCOUNTED_TOOLS["task_list"]="sub-agent — unit-tested: core/test/task-list.test.ts"
+ACCOUNTED_TOOLS["skill"]="unit-tested: core/test/skill.test.ts"
+ACCOUNTED_TOOLS["cron_create"]="unit-tested: core/test/cron-create.test.ts"
+ACCOUNTED_TOOLS["cron_delete"]="unit-tested: core/test/cron-delete.test.ts"
+ACCOUNTED_TOOLS["cron_list"]="unit-tested: core/test/cron-list.test.ts"
+ACCOUNTED_TOOLS["schedule_wakeup"]="unit-tested: core/test/schedule-wakeup.test.ts"
+ACCOUNTED_TOOLS["enter_worktree"]="unit-tested: core/test/enter-worktree.test.ts"
+ACCOUNTED_TOOLS["exit_worktree"]="unit-tested: core/test/exit-worktree.test.ts"
+ACCOUNTED_TOOLS["send_message"]="sub-agent — unit-tested: core/test/send-message.test.ts"
+ACCOUNTED_TOOLS["sleep"]="trivial — unit-tested: core/test/sleep.test.ts"
+ACCOUNTED_TOOLS["workflow"]="unit-tested: core/test/workflow.test.ts"
+ACCOUNTED_TOOLS["brief"]="interactive — unit-tested: core/test/brief.test.ts"
+ACCOUNTED_TOOLS["team_create"]="unit-tested: core/test/team.test.ts"
+ACCOUNTED_TOOLS["team_delete"]="unit-tested: core/test/team.test.ts"
+ACCOUNTED_TOOLS["todo_write"]="unit-tested: core/test/todo-write.test.ts"
+ACCOUNTED_TOOLS["config"]="unit-tested: core/test/config-tool.test.ts"
+ACCOUNTED_TOOLS["structured_output"]="internal — unit-tested: core/test/synthetic-output.test.ts"
+ACCOUNTED_TOOLS["diagnostics"]="lsp — unit-tested: core/test/lsp-diagnostics.test.ts"
+ACCOUNTED_TOOLS["find_references"]="lsp — unit-tested: core/test/lsp-diagnostics.test.ts"
+ACCOUNTED_TOOLS["agentic_fetch"]="unit-tested: core/test/agentic-fetch.test.ts"
+ACCOUNTED_TOOLS["scout"]="unit-tested: core/test/scout.test.ts"
+ACCOUNTED_TOOLS["EndConversation"]="unit-tested: core/test/end-conversation.test.ts"
+
+if echo "$intro_out" | jq -e '.tools' >/dev/null 2>&1; then
+  TOTAL_TOOLS=$(echo "$intro_out" | jq '.tools | length')
+  UNTESTED_TOOL_COUNT=0
+  for tname in $(echo "$intro_out" | jq -r '.tools[].name'); do
+    if [ -n "${TESTED_TOOLS[$tname]:-}" ]; then
+      pass "tool/$tname: inference-tested"
+    elif [ -n "${ACCOUNTED_TOOLS[$tname]:-}" ]; then
+      pass "tool/$tname: ${ACCOUNTED_TOOLS[$tname]}"
+    else
+      fail "UNTESTED TOOL: $tname" "registered but not in TESTED_TOOLS or ACCOUNTED_TOOLS — add coverage"
+      UNTESTED_TOOL_COUNT=$((UNTESTED_TOOL_COUNT + 1))
+    fi
+  done
+
+  if [ "$UNTESTED_TOOL_COUNT" -gt 0 ]; then
+    fail "Tool coverage" "$UNTESTED_TOOL_COUNT/$TOTAL_TOOLS tool(s) unaccounted"
+  else
+    pass "Tool coverage: all $TOTAL_TOOLS tools accounted for"
+  fi
+else
+  skip "Tool coverage gate" "introspect not available"
 fi
 
 summary

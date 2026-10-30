@@ -26,7 +26,13 @@ fi
 
 if [ -z "${DISC_TOOLS+x}" ]; then
   DISC_TOOLS=(
-    file-read bash pwd ls date error env uname roundtrip arith
+    bash file_read file_edit grep glob list_dir web_fetch web_search
+    notebook_edit search_symbols task tool_search AskUserQuestion git_commit
+    task_tracker plan_mode task_complete task_output task_kill task_list skill
+    cron_create cron_delete cron_list schedule_wakeup enter_worktree
+    exit_worktree send_message sleep workflow brief team_create team_delete
+    todo_write config structured_output diagnostics find_references
+    agentic_fetch scout EndConversation
   )
 fi
 
@@ -89,6 +95,30 @@ COVERED_ITEMS=$((COVERED_ITEMS + CMD_TESTED))
 echo ""
 printf "  $(bold 'Commands: %d / %d')\n" "$CMD_TESTED" "$CMD_TOTAL"
 
+section "Personas"
+
+PERSONA_TOTAL=${#DISC_PERSONAS[@]}
+PERSONA_TESTED=0
+
+for persona in "${DISC_PERSONAS[@]}"; do
+  found=false
+  if grep -q "persona $persona" "$SCRIPT_DIR/slash-commands.sh" 2>/dev/null; then
+    found=true
+  fi
+  if $found; then
+    printf "  $(green '●')  %s\n" "$persona"
+    PERSONA_TESTED=$((PERSONA_TESTED + 1))
+  else
+    printf "  $(yellow '○')  %s $(dim '(no test)')\n" "$persona"
+  fi
+done
+
+TOTAL_ITEMS=$((TOTAL_ITEMS + PERSONA_TOTAL))
+COVERED_ITEMS=$((COVERED_ITEMS + PERSONA_TESTED))
+
+echo ""
+printf "  $(bold 'Personas: %d / %d')\n" "$PERSONA_TESTED" "$PERSONA_TOTAL"
+
 section "Tools"
 
 TOOL_TOTAL=${#DISC_TOOLS[@]}
@@ -96,8 +126,8 @@ TOOL_TESTED=0
 
 for tool in "${DISC_TOOLS[@]}"; do
   found=false
-  for src in "$SCRIPT_DIR/agent-features.sh" "$SCRIPT_DIR/cli.sh" "$SCRIPT_DIR/slash-commands.sh" "$SCRIPT_DIR/providers.sh" "$SCRIPT_DIR/providers-all.sh"; do
-    if [ -f "$src" ] && grep -qi "$tool" "$src" 2>/dev/null; then
+  for src in "$SCRIPT_DIR/agent-features.sh"; do
+    if [ -f "$src" ] && grep -qE "TESTED_TOOLS\[\"$tool\"\]|ACCOUNTED_TOOLS\[\"$tool\"\]" "$src" 2>/dev/null; then
       found=true
       break
     fi
@@ -156,6 +186,7 @@ printf "  $(bold 'Total coverage: %d / %d (%d%%)')\n" "$COVERED_ITEMS" "$TOTAL_I
 echo ""
 printf "  Providers:  %d / %d\n" "$PROV_KEYED" "$PROV_TOTAL"
 printf "  Commands:   %d / %d\n" "$CMD_TESTED" "$CMD_TOTAL"
+printf "  Personas:   %d / %d\n" "$PERSONA_TESTED" "$PERSONA_TOTAL"
 printf "  Tools:      %d / %d\n" "$TOOL_TESTED" "$TOOL_TOTAL"
 printf "  Flags:      %d / %d\n" "$FLAG_TESTED" "$FLAG_TOTAL"
 echo ""
