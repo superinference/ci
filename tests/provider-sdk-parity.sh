@@ -52,6 +52,48 @@ SDK_PROVIDERS=(
 COMPAT_PROVIDERS="perplexity nvidia openrouter luma azure-openai amazon-bedrock ollama ai-gateway"
 
 # ═══════════════════════════════════════════════════════════════════
+# STEP 0: Cross-check SDK_PROVIDERS against package.json (if available)
+# When running locally with the UI repo, verify SDK_PROVIDERS matches
+# the actual @ai-sdk/* dependencies. In CI this file doesn't exist
+# and the step is skipped.
+# ═══════════════════════════════════════════════════════════════════
+
+CORE_PKG="${CORE_PACKAGE_JSON:-$SCRIPT_DIR/../../ui/core/core/package.json}"
+if [ -f "$CORE_PKG" ]; then
+  section "SDK_PROVIDERS ↔ package.json Cross-Check"
+  ACTUAL_SDK=$(jq -r '.dependencies | keys[] | select(startswith("@ai-sdk/")) | ltrimstr("@ai-sdk/")' "$CORE_PKG" | sort)
+
+  # Build flat list of SDK package names from SDK_PROVIDERS
+  DECLARED_SDK=""
+  for entry in "${SDK_PROVIDERS[@]}"; do
+    DECLARED_SDK="$DECLARED_SDK${entry%%|*}\n"
+  done
+  DECLARED_SDK=$(printf "$DECLARED_SDK" | sort | grep '.')
+
+  # Check for packages in package.json but missing from SDK_PROVIDERS
+  PKG_ONLY=$(comm -23 <(echo "$ACTUAL_SDK") <(echo "$DECLARED_SDK"))
+  if [ -n "$PKG_ONLY" ]; then
+    for pkg in $PKG_ONLY; do
+      fail "pkg→test: @ai-sdk/$pkg in package.json but NOT in SDK_PROVIDERS" "add it to the test"
+    done
+  else
+    pass "pkg→test: all @ai-sdk/* packages are in SDK_PROVIDERS"
+  fi
+
+  # Check for entries in SDK_PROVIDERS but missing from package.json
+  TEST_ONLY=$(comm -13 <(echo "$ACTUAL_SDK") <(echo "$DECLARED_SDK"))
+  if [ -n "$TEST_ONLY" ]; then
+    for pkg in $TEST_ONLY; do
+      fail "test→pkg: $pkg in SDK_PROVIDERS but NOT in package.json" "remove it or install the package"
+    done
+  else
+    pass "test→pkg: all SDK_PROVIDERS entries are in package.json"
+  fi
+else
+  echo "  $(dim 'package.json not found — skipping cross-check (normal in CI)')"
+fi
+
+# ═══════════════════════════════════════════════════════════════════
 # STEP 1: Introspect the agent
 # ═══════════════════════════════════════════════════════════════════
 
@@ -66,6 +108,10 @@ pass "introspect: valid JSON output"
 
 AGENT_PROVIDERS=$(echo "$INTROSPECT" | jq -r '.providers[].id' | sort)
 AGENT_COUNT=$(echo "$AGENT_PROVIDERS" | grep -c '.' || echo 0)
+if [ "$AGENT_COUNT" -eq 0 ]; then
+  fail "introspect: 0 providers" "broken agent or misconfigured --introspect"
+  summary
+fi
 pass "introspect: $AGENT_COUNT providers reported"
 
 # Build lookup: provider → nativeSdk
@@ -183,6 +229,7 @@ section "Per-Provider Inference Probes (SDK Providers)"
 if has_frito_config; then
   PROBED=0
   PROBE_PASS=0
+  PROBE_FAIL=0
   PROBE_SKIP=0
 
   for entry in "${SDK_PROVIDERS[@]}"; do
@@ -226,6 +273,7 @@ if has_frito_config; then
         PROBE_SKIP=$((PROBE_SKIP + 1))
       else
         fail "probe/$primary_pid: inference" "${error:0:80}"
+        PROBE_FAIL=$((PROBE_FAIL + 1))
       fi
     fi
   done
@@ -235,6 +283,8 @@ if has_frito_config; then
 
   for pid in $COMPAT_PROVIDERS; do
     if ! has_key "$pid"; then
+      skip "probe/$pid: no key"
+      PROBE_SKIP=$((PROBE_SKIP + 1))
       continue
     fi
 
@@ -269,11 +319,12 @@ if has_frito_config; then
         PROBE_SKIP=$((PROBE_SKIP + 1))
       else
         fail "probe/$pid: inference" "${error:0:80}"
+        PROBE_FAIL=$((PROBE_FAIL + 1))
       fi
     fi
   done
 
-  echo "  $(dim "Probed: $PROBED | Pass: $PROBE_PASS | Skip: $PROBE_SKIP")"
+  echo "  $(dim "Probed: $PROBED | Pass: $PROBE_PASS | Fail: $PROBE_FAIL | Skip: $PROBE_SKIP")"
 else
   skip "inference probes" "no FRITO config — parity checks above still enforced"
 fi
