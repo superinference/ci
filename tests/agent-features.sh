@@ -944,8 +944,7 @@ PYEOF
   # (the agent handles them gracefully), but they ARE probed.
 
   probe_tool "task" \
-    "Create a sub-task to run the command 'echo task-probe-ok' and tell me the result." \
-    180 12
+    "Use the task tool to create a task with the prompt 'Say hello'. Do not wait for its result — just create it and confirm you did."
 
   probe_tool "task_tracker" \
     "Show me the current status of any running tasks or task trackers."
@@ -997,7 +996,7 @@ PYEOF
     "Delete the team called frito-test-team if it exists."
 
   probe_tool "workflow" \
-    "Create a simple workflow that runs one task to echo 'workflow-ok'."
+    "Use the workflow tool to create a minimal workflow. Do not wait for it to finish — just invoke the tool once and confirm."
 
   probe_tool "send_message" \
     "Send a message to any available agent saying 'probe test'."
