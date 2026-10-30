@@ -821,11 +821,13 @@ HAYSTACK
   echo "FRITO_GIT_CONTENT" > "$GIT_TEST_DIR/test-file.txt"
   git -C "$GIT_TEST_DIR" add test-file.txt 2>/dev/null || true
 
+  # Run AMI from inside GIT_TEST_DIR so the workspace IS the test
+  # repo — the git_commit tool operates on CWD, not an arbitrary path.
   pwait "$TOOL_PID"
-  output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" $ENV_BASE \
+  output=$(cd "$GIT_TEST_DIR" && timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" $ENV_BASE \
     $TOOL_ENV \
     $AMI --model "$TOOL_MODEL" --permission-mode auto-allow --max-turns $MAX_TURNS_TOOL \
-    --prompt "I have a git repo at $GIT_TEST_DIR with a staged file. Create a commit with message 'FRITO test commit'." 2>/dev/null) || true
+    --prompt "There is a staged file in this git repo. Create a commit with message 'FRITO test commit'." 2>/dev/null) || true
 
   if [ -z "$output" ]; then
     skip "tool/git_commit: output" "timed out or empty"
@@ -835,8 +837,6 @@ HAYSTACK
     skip "tool/git_commit: commit created" "non-JSON"
   else
     ok=$(echo "$output" | jq -r '.ok')
-    # git_commit: check actual git log regardless of ok — model may
-    # exhaust turns on verification after a successful commit.
     commit_log=$(git -C "$GIT_TEST_DIR" log --oneline -1 2>/dev/null || true)
     if echo "$commit_log" | grep -qi "FRITO"; then
       pass "tool/git_commit: commit created"
