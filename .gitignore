@@ -10,3 +10,4 @@ build/
 *.map
 .superinference/
 .githooks/
+.frito-*

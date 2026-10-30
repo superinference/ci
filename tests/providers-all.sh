@@ -1,6 +1,6 @@
 #!/bin/bash
 # FRITO CI — All-provider inference tests (850+ assertions)
-# Tests every provider in ALL_PROVIDERS through ami --prompt with real inference.
+# Tests every provider in ALL_PROVIDERS through $AMI --prompt with real inference.
 # Categories: Basic, Math, Knowledge, Instruction Following, UTF-8, Edge Cases, Code
 set -euo pipefail
 
@@ -18,7 +18,7 @@ echo ""
 echo "$(bold 'FRITO All-Provider Inference Tests — 850+ Assertions')"
 echo "$(dim "Config: $FRITO_CONFIG")"
 echo "$(dim "Date: $(date -u +%Y-%m-%dT%H:%M:%SZ)")"
-echo "$(dim "Binary: $(command -v ami 2>/dev/null || echo 'not found')")"
+echo "$(dim "Binary: $AMI")"
 echo ""
 
 # ═══════════════════════════════════════════════════════════════════
@@ -35,7 +35,7 @@ ami_prompt() {
   local output
   output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" $ENV_BASE \
     $env_args \
-    ami --prompt "$prompt" --max-turns $MAX_TURNS_PROBE "${model_args[@]}" 2>/dev/null) || true
+    $AMI --prompt "$prompt" --max-turns $MAX_TURNS_PROBE "${model_args[@]}" 2>/dev/null) || true
   if [ -z "$output" ]; then
     echo '{"ok":false,"error":"no output from cli"}'
   else
@@ -159,7 +159,7 @@ for pid in "${ALL_PROVIDERS[@]}"; do
     _m=$(pick_model "$pid")
     _env_args=$(provider_env_string "$pid" "$_k")
     _out=$(timeout $PROBE_TIMEOUT env -i PATH="$PATH" HOME="$HOME" $ENV_BASE \
-      $_env_args ami --model "$_m" --max-turns $MAX_TURNS_PROBE --prompt "hi" 2>/dev/null) || true
+      $_env_args $AMI --model "$_m" --max-turns $MAX_TURNS_PROBE --prompt "hi" 2>/dev/null) || true
     if [ -n "$_out" ] && echo "$_out" | jq -e '(.ok == true) or ((.error // "") | test("max.turns|429|rate.limit|too.many|quota|resource.exhausted|overloaded"; "i"))' >/dev/null 2>&1; then
       PROVIDER_LIVE[$pid]=1
       PROVIDER_LIVE_MODEL[$pid]="$_m"

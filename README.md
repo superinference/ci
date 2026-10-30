@@ -3,14 +3,14 @@
 [![FRITO Test Suite](https://github.com/superinference/ci/actions/workflows/frito.yml/badge.svg)](https://github.com/superinference/ci/actions/workflows/frito.yml)
 [![OpenShell Container](https://github.com/superinference/ci/actions/workflows/openshell.yml/badge.svg)](https://github.com/superinference/ci/actions/workflows/openshell.yml)
 
-End-to-end test suite for [SuperInference AMI](https://www.superinference.org) -- tests the released binary installed via the public install script against live provider APIs.
+End-to-end test suite for [SuperInference AMI](https://www.superinference.org) — tests the released binary installed via the public install script against live provider APIs.
 
 ## Test Suites
 
 | Suite | What it tests |
 |-------|---------------|
 | **Install** | Binary download, PATH, `--version`, `--help` |
-| **Security** | No hardcoded keys, gitignore rules, file permissions |
+| **Security** | No hardcoded keys, gitignore rules, file permissions (`security.sh`) |
 | **Config** | `frito.json` schema, provider entries, model fields |
 | **CLI** | All flags from `--help`, dynamic coverage gate |
 | **Providers** | Core provider inference (5 providers) |
@@ -39,15 +39,15 @@ cp frito.example.json frito.json   # fill in real keys
 FRITO_CONFIG=$PWD/frito.json bash tests/providers-all.sh
 
 # Run all suites
-for t in install security config cli providers providers-all slash-commands agent-features; do
+for t in install security config cli providers providers-all slash-commands agent-features openshell; do
   echo "=== $t ==="
-  bash tests/$t.sh
+  bash "tests/$t.sh"
 done
 ```
 
 ## Setup
 
-1. Create the `AMI_FRITO` repository secret with the frito JSON content (see `frito.example.json`)
+1. Create the `AMI_FRITO` repository secret with the `FRITO_JSON` content (see `frito.example.json`)
 2. The secret is passed as `FRITO_JSON` env var -- credentials never touch disk
 3. Workflows run automatically on schedule or trigger manually from the Actions tab
 

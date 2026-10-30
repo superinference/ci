@@ -139,13 +139,13 @@ fi
 section "Key Leakage in CLI"
 
 if has_frito_config; then
-  VER_OUT=$(ami --version 2>&1 || true)
+  VER_OUT=$($AMI --version 2>&1 || true)
   for pid in $(frito_jq -r '.providers | keys[]' 2>/dev/null); do
     KEY=$(frito_jq -r ".providers.$pid.keys[0] // empty" 2>/dev/null || echo "")
     [ -n "$KEY" ] && [ "$KEY" != "null" ] && assert_not_contains "$VER_OUT" "$KEY" "leak/$pid: key not in --version"
   done
 
-  HELP_OUT=$(ami --help 2>&1 || true)
+  HELP_OUT=$($AMI --help 2>&1 || true)
   for pid in $(frito_jq -r '.providers | keys[]' 2>/dev/null); do
     KEY=$(frito_jq -r ".providers.$pid.keys[0] // empty" 2>/dev/null || echo "")
     [ -n "$KEY" ] && [ "$KEY" != "null" ] && assert_not_contains "$HELP_OUT" "$KEY" "leak/$pid: key not in --help"
@@ -156,7 +156,7 @@ if has_frito_config; then
     rate_limit_wait
     PROMPT_OUT=$(timeout $AMI_TIMEOUT_LONG env -i PATH="$PATH" HOME="$HOME" $ENV_BASE \
       GROQ_API_KEY="$KEY" \
-      ami --prompt "Say hello" 2>/dev/null) || true
+      $AMI --prompt "Say hello" 2>/dev/null) || true
     if [ -n "$PROMPT_OUT" ]; then
       assert_not_contains "$PROMPT_OUT" "$KEY" "leak/groq: key not in --prompt output"
       BASE_URL=$(echo "$PROMPT_OUT" | jq -r '.baseUrl // empty' 2>/dev/null || true)
@@ -174,7 +174,7 @@ fi
 # ═══════════════════════════════════════════════════════════════════
 section "Binary Integrity"
 
-AMI_BIN=$(command -v ami 2>/dev/null || echo "")
+AMI_BIN=$(command -v ${AMI%% *} 2>/dev/null || echo "")
 if [ -n "$AMI_BIN" ]; then
   FILE_TYPE=$(file "$AMI_BIN" 2>/dev/null || echo "unknown")
 

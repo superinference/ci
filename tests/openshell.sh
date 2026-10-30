@@ -171,7 +171,7 @@ else
 fi
 
 # Test: default CMD (no AGENT_PROMPT) shows help
-NO_PROMPT=$($RUN "$IMAGE" ami 2>&1 || true)
+NO_PROMPT=$($RUN "$IMAGE" $AMI 2>&1 || true)
 if echo "$NO_PROMPT" | grep -qi "help\|usage\|provide.*prompt\|AGENT_PROMPT"; then
   pass "no AGENT_PROMPT shows help/usage"
 else
@@ -196,7 +196,7 @@ section "Startup Probe"
 PROBE_CHECK=$($CONTAINER_ENGINE run --rm --entrypoint bash \
   -e AGENT_PROMPT="test" \
   "$IMAGE" -c '
-    /usr/local/bin/entrypoint.sh ami --help >/dev/null 2>&1 &
+    /usr/local/bin/entrypoint.sh $AMI --help >/dev/null 2>&1 &
     sleep 2
     [ -f /tmp/agent-ready ] && echo ok || echo missing
   ' 2>/dev/null || echo "missing")
@@ -230,7 +230,7 @@ if [ -n "${AI_API_KEY:-}" ]; then
   # --- 6b: Explicit CLI args (bypass entrypoint env) ---
   CLI_OUT=$(timeout 120 $RUN \
     -e "AI_API_KEY=$AI_API_KEY" \
-    "$IMAGE" ami --prompt "What is 3+3? Answer with just the number." \
+    "$IMAGE" $AMI --prompt "What is 3+3? Answer with just the number." \
     --yolo --output-format jsonl 2>&1 || echo "TIMEOUT")
 
   if [ "$CLI_OUT" = "TIMEOUT" ]; then
@@ -244,7 +244,7 @@ if [ -n "${AI_API_KEY:-}" ]; then
   # --- 6c: JSONL output format validation ---
   JSONL_OUT=$(timeout 120 $RUN \
     -e "AI_API_KEY=$AI_API_KEY" \
-    "$IMAGE" ami --prompt "Say hello" \
+    "$IMAGE" $AMI --prompt "Say hello" \
     --yolo --output-format jsonl 2>&1 || echo "TIMEOUT")
 
   if [ "$JSONL_OUT" = "TIMEOUT" ]; then
@@ -302,7 +302,7 @@ if [ -n "${AI_API_KEY:-}" ]; then
   # --- 6f: --yolo flag accepted ---
   YOLO_OUT=$(timeout 120 $RUN \
     -e "AI_API_KEY=$AI_API_KEY" \
-    "$IMAGE" ami --prompt "What is 5+5? Just the number." \
+    "$IMAGE" $AMI --prompt "What is 5+5? Just the number." \
     --yolo 2>&1 || echo "TIMEOUT")
 
   if [ "$YOLO_OUT" = "TIMEOUT" ]; then
@@ -316,7 +316,7 @@ if [ -n "${AI_API_KEY:-}" ]; then
   # --- 6g: Output contains result content ---
   MATH_OUT=$(timeout 120 $RUN \
     -e "AI_API_KEY=$AI_API_KEY" \
-    "$IMAGE" ami --prompt "What is 7+7? Reply ONLY with the number, nothing else." \
+    "$IMAGE" $AMI --prompt "What is 7+7? Reply ONLY with the number, nothing else." \
     --yolo --output-format jsonl 2>&1 || echo "TIMEOUT")
 
   if [ "$MATH_OUT" = "TIMEOUT" ]; then
@@ -332,12 +332,12 @@ if [ -n "${AI_API_KEY:-}" ]; then
   # --- 6h: Multiple sequential runs produce independent output ---
   RUN1_OUT=$(timeout 120 $RUN \
     -e "AI_API_KEY=$AI_API_KEY" \
-    "$IMAGE" ami --prompt "Say alpha" \
+    "$IMAGE" $AMI --prompt "Say alpha" \
     --yolo --output-format jsonl 2>&1 || echo "TIMEOUT")
 
   RUN2_OUT=$(timeout 120 $RUN \
     -e "AI_API_KEY=$AI_API_KEY" \
-    "$IMAGE" ami --prompt "Say bravo" \
+    "$IMAGE" $AMI --prompt "Say bravo" \
     --yolo --output-format jsonl 2>&1 || echo "TIMEOUT")
 
   if [ "$RUN1_OUT" = "TIMEOUT" ] || [ "$RUN2_OUT" = "TIMEOUT" ]; then
@@ -367,7 +367,7 @@ if [ -n "${AI_API_KEY:-}" ]; then
   ENV_OUT=$(timeout 120 $RUN \
     -e "AI_API_KEY=$AI_API_KEY" \
     -e "CUSTOM_VAR=test_value_42" \
-    "$IMAGE" ami --prompt "Print the value of the CUSTOM_VAR environment variable. Reply ONLY with the value." \
+    "$IMAGE" $AMI --prompt "Print the value of the CUSTOM_VAR environment variable. Reply ONLY with the value." \
     --yolo --output-format jsonl 2>&1 || echo "TIMEOUT")
 
   if [ "$ENV_OUT" = "TIMEOUT" ]; then
@@ -383,7 +383,7 @@ if [ -n "${AI_API_KEY:-}" ]; then
   # --- 6k: Working directory is /sandbox ---
   CWD_OUT=$(timeout 120 $RUN \
     -e "AI_API_KEY=$AI_API_KEY" \
-    "$IMAGE" ami --prompt "Run pwd and reply ONLY with the output path, nothing else." \
+    "$IMAGE" $AMI --prompt "Run pwd and reply ONLY with the output path, nothing else." \
     --yolo --output-format jsonl 2>&1 || echo "TIMEOUT")
 
   if [ "$CWD_OUT" = "TIMEOUT" ]; then

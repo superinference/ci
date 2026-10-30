@@ -16,8 +16,15 @@ PROBE_TIMEOUT=30
 # MAX_TURNS_PROBE: used during liveness probes (just needs one successful reply).
 MAX_TURNS_PROBE=4
 # MAX_TURNS_TOOL: used during tool-use tests (model calls tool, gets result, replies).
-# Needs ≥4: call tool → read result → (optional retry) → reply.
-MAX_TURNS_TOOL=5
+# gpt-5.6-luna via /v1/responses can spend extra turns on reasoning before acting.
+# Needs ≥6: reasoning → call tool → read result → reasoning → (retry) → reply.
+MAX_TURNS_TOOL=8
+
+# ─── Binary override ────────────────────────────────────────────
+# AMI: path to the ami binary. Defaults to `ami` in PATH.
+# Override to test with a fresh esbuild bundle:
+#   AMI="node /path/to/cli/dist/superinference.mjs" bash tests/agent-features.sh
+AMI="${AMI:-ami}"
 
 # ─── Environment baseline ───────────────────────────────────────
 # Every `env -i` invocation should include these to suppress TUI chrome and warnings.

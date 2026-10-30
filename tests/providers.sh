@@ -1,6 +1,6 @@
 #!/bin/bash
 # FRITO CI — 1000+ functional test assertions
-# Primary: ami --prompt (structured JSON) | Complement: curl (streaming/errors)
+# Primary: $AMI --prompt (structured JSON) | Complement: curl (streaming/errors)
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -17,7 +17,7 @@ echo ""
 echo "$(bold 'FRITO Provider Tests — 1000+ Assertions')"
 echo "$(dim "Config: ${FRITO_JSON:+env:FRITO_JSON}${FRITO_JSON:-$FRITO_CONFIG}")"
 echo "$(dim "Date: $(date -u +%Y-%m-%dT%H:%M:%SZ)")"
-echo "$(dim "Binary: $(command -v ami 2>/dev/null || echo 'not found')")"
+echo "$(dim "Binary: $AMI")"
 echo ""
 
 # ═══════════════════════════════════════════════════════════════════
@@ -53,7 +53,7 @@ ami_prompt() {
   local output
   output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" $ENV_BASE \
     $env_args \
-    ami --prompt "$prompt" --max-turns $MAX_TURNS_PROBE "${model_args[@]}" 2>/dev/null) || true
+    $AMI --prompt "$prompt" --max-turns $MAX_TURNS_PROBE "${model_args[@]}" 2>/dev/null) || true
   if [ -z "$output" ]; then
     echo '{"ok":false,"error":"no output from cli"}'
   else
@@ -158,7 +158,7 @@ for _entry in "${PROVIDERS[@]}"; do
     _m=$(get_model "$_pid")
     _env_args=$(provider_env_string "$_pid" "$_k")
     _out=$(timeout $PROBE_TIMEOUT env -i PATH="$PATH" HOME="$HOME" $ENV_BASE \
-      $_env_args ami --model "$_m" --prompt "hi" --max-turns $MAX_TURNS_PROBE 2>/dev/null) || true
+      $_env_args $AMI --model "$_m" --prompt "hi" --max-turns $MAX_TURNS_PROBE 2>/dev/null) || true
     if [ -n "$_out" ] && echo "$_out" | jq -e '.ok == true or .error == "Max turns (1) exceeded"' >/dev/null 2>&1; then
       PROVIDER_LIVE[$_pid]=1
       echo "  $(dim "▸ $_pid: live")"
@@ -837,7 +837,7 @@ run_cross_provider() {
       local output
       output=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" $ENV_BASE \
         "${env_var}=${k}" \
-        ami --model "$m" --prompt "Say ok" 2>/dev/null) || true
+        $AMI --model "$m" --prompt "Say ok" 2>/dev/null) || true
       local status
       status=$(echo "$output" | jq -r '.ok' 2>/dev/null || echo "false")
       echo "$status" > "$results_dir/$pid"
@@ -869,11 +869,11 @@ run_cross_provider() {
   echo "  $(dim '▸ CLI validation')"
 
   local ver
-  ver=$(ami --version 2>&1 || true)
-  echo "$ver" | grep -q "superinference v" && pass "cross: ami --version ($ver)" || fail "cross: ami --version" "$ver"
+  ver=$($AMI --version 2>&1 || true)
+  echo "$ver" | grep -q "superinference v" && pass "cross: $AMI --version ($ver)" || fail "cross: $AMI --version" "$ver"
 
   local hlp
-  hlp=$(ami --help 2>&1 || true)
+  hlp=$($AMI --help 2>&1 || true)
   for flag in "--prompt" "--model" "--api-key" "--base-url" "--version" "--help"; do
     echo "$hlp" | grep -q -- "$flag" && pass "cross: --help has $flag" || fail "cross: --help has $flag"
   done

@@ -19,9 +19,9 @@ if ! command -v expect &>/dev/null; then
   exit 1
 fi
 
-AMI_BIN=$(command -v ami 2>/dev/null || echo "")
+AMI_BIN=$(command -v ${AMI%% *} 2>/dev/null || echo "")
 if [ -z "$AMI_BIN" ]; then
-  fail "ami binary found" "not in PATH"
+  fail "ami callable" "${AMI%% *} not in PATH"
   summary
   exit 1
 fi
@@ -49,7 +49,7 @@ if has_frito_config; then
       _m=$(pick_model "$_pid")
       _env_args=$(provider_env_string "$_pid" "$_k")
       _out=$(timeout $PROBE_TIMEOUT env -i PATH="$PATH" HOME="$HOME" $ENV_BASE \
-        $_env_args ami --model "$_m" --max-turns $MAX_TURNS_PROBE --prompt "hi" 2>/dev/null) || true
+        $_env_args $AMI --model "$_m" --max-turns $MAX_TURNS_PROBE --prompt "hi" 2>/dev/null) || true
       if [ -n "$_out" ] && echo "$_out" | jq . >/dev/null 2>&1; then
         SLASH_KEY="$_k"
         SLASH_ENV="$_env_args"

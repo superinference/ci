@@ -17,11 +17,11 @@ DISC_THINKING_LEVELS=()
 DISC_PERSONAS=()
 DISC_OUTPUT_FORMATS=()
 
-AMI_BIN=$(command -v ami 2>/dev/null || echo "")
+AMI_BIN=$(command -v ${AMI%% *} 2>/dev/null || echo "")
 
-if [ -n "$AMI_BIN" ]; then
+if [ -n $AMI ]; then
   # Primary: --introspect returns the full manifest in one call
-  _raw=$(timeout 10 "$AMI_BIN" --introspect 2>/dev/null || true)
+  _raw=$(timeout 10 $AMI --introspect 2>/dev/null || true)
   if echo "$_raw" | jq -e '.version' >/dev/null 2>&1; then
     INTROSPECT_AVAILABLE=true
     INTROSPECT_JSON="$_raw"
@@ -38,23 +38,23 @@ if [ -n "$AMI_BIN" ]; then
 
   # Fallback: --run-command queries individual slash commands (no API key needed)
   if [ "$INTROSPECT_AVAILABLE" = false ]; then
-    _prov=$(timeout 10 "$AMI_BIN" --run-command "/providers" 2>/dev/null || true)
+    _prov=$(timeout 10 $AMI --run-command "/providers" 2>/dev/null || true)
     if echo "$_prov" | jq -e '.data.providers' >/dev/null 2>&1; then
       INTROSPECT_AVAILABLE=true
       mapfile -t DISC_PROVIDERS < <(echo "$_prov" | jq -r '.data.providers[].id')
-      _help=$(timeout 10 "$AMI_BIN" --run-command "/help" 2>/dev/null || true)
+      _help=$(timeout 10 $AMI --run-command "/help" 2>/dev/null || true)
       if echo "$_help" | jq -e '.data.commands' >/dev/null 2>&1; then
         mapfile -t DISC_COMMANDS < <(echo "$_help" | jq -r '.data.commands[].name' | grep -oP '(?<=/)[\w-]+' | sort -u)
       fi
-      _think=$(timeout 10 "$AMI_BIN" --run-command "/thinking" 2>/dev/null || true)
+      _think=$(timeout 10 $AMI --run-command "/thinking" 2>/dev/null || true)
       if echo "$_think" | jq -e '.data.validLevels' >/dev/null 2>&1; then
         mapfile -t DISC_THINKING_LEVELS < <(echo "$_think" | jq -r '.data.validLevels[]')
       fi
-      _persona=$(timeout 10 "$AMI_BIN" --run-command "/persona" 2>/dev/null || true)
+      _persona=$(timeout 10 $AMI --run-command "/persona" 2>/dev/null || true)
       if echo "$_persona" | jq -e '.data.list' >/dev/null 2>&1; then
         mapfile -t DISC_PERSONAS < <(echo "$_persona" | jq -r '.data.list[].name')
       fi
-      _perms=$(timeout 10 "$AMI_BIN" --run-command "/permissions" 2>/dev/null || true)
+      _perms=$(timeout 10 $AMI --run-command "/permissions" 2>/dev/null || true)
       if echo "$_perms" | jq -e '.data.availableModes' >/dev/null 2>&1; then
         mapfile -t DISC_PERMISSION_MODES < <(echo "$_perms" | jq -r '.data.availableModes[]')
       fi
@@ -63,8 +63,8 @@ if [ -n "$AMI_BIN" ]; then
 fi
 
 if [ "$INTROSPECT_AVAILABLE" = false ]; then
-  if [ -n "$AMI_BIN" ]; then
-    AMI_VERSION=$("$AMI_BIN" --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || echo "unknown")
+  if [ -n $AMI ]; then
+    AMI_VERSION=$($AMI --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || echo "unknown")
   fi
 
   DISC_PROVIDERS=(
