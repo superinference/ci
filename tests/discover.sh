@@ -14,7 +14,7 @@ DISC_TOOLS=()
 DISC_FLAGS=()
 DISC_PERMISSION_MODES=()
 DISC_THINKING_LEVELS=()
-DISC_PERSONAS=()
+DISC_SKILLS=()
 DISC_OUTPUT_FORMATS=()
 
 AMI_BIN=$(command -v ${AMI%% *} 2>/dev/null || echo "")
@@ -32,7 +32,7 @@ if [ -n $AMI ]; then
     mapfile -t DISC_FLAGS < <(echo "$INTROSPECT_JSON" | jq -r '.flags[].name' | sed 's/^/--/')
     mapfile -t DISC_PERMISSION_MODES < <(echo "$INTROSPECT_JSON" | jq -r '.permissionModes[]')
     mapfile -t DISC_THINKING_LEVELS < <(echo "$INTROSPECT_JSON" | jq -r '.thinkingLevels[]')
-    mapfile -t DISC_PERSONAS < <(echo "$INTROSPECT_JSON" | jq -r '.personas[].name')
+    mapfile -t DISC_SKILLS < <(echo "$INTROSPECT_JSON" | jq -r '.skills[]?.name // empty')
     mapfile -t DISC_OUTPUT_FORMATS < <(echo "$INTROSPECT_JSON" | jq -r '.outputFormats[]')
   fi
 
@@ -50,9 +50,9 @@ if [ -n $AMI ]; then
       if echo "$_think" | jq -e '.data.validLevels' >/dev/null 2>&1; then
         mapfile -t DISC_THINKING_LEVELS < <(echo "$_think" | jq -r '.data.validLevels[]')
       fi
-      _persona=$(timeout 10 $AMI --run-command "/persona" 2>/dev/null || true)
-      if echo "$_persona" | jq -e '.data.list' >/dev/null 2>&1; then
-        mapfile -t DISC_PERSONAS < <(echo "$_persona" | jq -r '.data.list[].name')
+      _skills=$(timeout 10 $AMI --run-command "/skills" 2>/dev/null || true)
+      if echo "$_skills" | jq -e '.data.skills' >/dev/null 2>&1; then
+        mapfile -t DISC_SKILLS < <(echo "$_skills" | jq -r '.data.skills[].name')
       fi
       _perms=$(timeout 10 $AMI --run-command "/permissions" 2>/dev/null || true)
       if echo "$_perms" | jq -e '.data.availableModes' >/dev/null 2>&1; then
@@ -78,7 +78,7 @@ if [ "$INTROSPECT_AVAILABLE" = false ]; then
     add-dir admission agents analytics architect background clear commit compact
     config context cost diff doctor exit export fast foreground frito goal help
     hooks index keybindings loop mcp memory mode model output-style permissions
-    persona plan profile provider provision providers quit recap resume review
+    plan profile provider provision providers quit recap resume review
     rewind safe-mode search serve session sessions skill skillbook skills status
     superinference symbols tasks theme thinking undo update usage
   )
@@ -99,12 +99,21 @@ if [ "$INTROSPECT_AVAILABLE" = false ]; then
     --output-format --input-format --session-id --allow --deny --yolo
     --context-file --image --output-schema --stdin --quiet --max-steps
     --token-budget --fallback-model --plan-mode --run-command --completions
-    --help --version --introspect --persona
+    --help --version --introspect --skill
   )
 
   DISC_PERMISSION_MODES=(ask auto-allow deny-all)
   DISC_THINKING_LEVELS=(off low medium high max)
-  DISC_PERSONAS=(code pentest sre research)
+  # Static fallback: the wired native skills (bundled in the skills/ library).
+  # The introspect path above supersedes this when the binary supports it.
+  DISC_SKILLS=(
+    pentest sre research swebench
+    code-review explain refactor test-gen coding-discipline
+    adversarial-verifier code-graph adversarial-review
+    feature-completeness-assessment performance-audit planning task-orchestration
+    review-changes-workflow understand-codebase-workflow design-exploration-workflow
+    research-synthesis-workflow migration-workflow
+  )
   DISC_OUTPUT_FORMATS=(json jsonl text)
 fi
 
@@ -139,6 +148,20 @@ disc_provider_native() {
   fi
 }
 
+# Safety net: a binary whose --introspect manifest predates the skills field
+# (or omits it) leaves DISC_SKILLS empty. Fall back to the known wired skills so
+# the skills suite can still enforce its coverage gate.
+if [ "${#DISC_SKILLS[@]}" -eq 0 ]; then
+  DISC_SKILLS=(
+    pentest sre research swebench
+    code-review explain refactor test-gen coding-discipline
+    adversarial-verifier code-graph adversarial-review
+    feature-completeness-assessment performance-audit planning task-orchestration
+    review-changes-workflow understand-codebase-workflow design-exploration-workflow
+    research-synthesis-workflow migration-workflow
+  )
+fi
+
 echo ""
 echo "$(bold '── Discovery ──')"
 if [ "$INTROSPECT_AVAILABLE" = true ]; then
@@ -151,7 +174,7 @@ echo "  $(dim "providers:   ${#DISC_PROVIDERS[@]}")"
 echo "  $(dim "commands:    ${#DISC_COMMANDS[@]}")"
 echo "  $(dim "tools:       ${#DISC_TOOLS[@]}")"
 echo "  $(dim "flags:       ${#DISC_FLAGS[@]}")"
-echo "  $(dim "personas:    ${#DISC_PERSONAS[@]}")"
+echo "  $(dim "skills:      ${#DISC_SKILLS[@]}")"
 echo "  $(dim "thinking:    ${#DISC_THINKING_LEVELS[@]}")"
 echo "  $(dim "permissions: ${#DISC_PERMISSION_MODES[@]}")"
 echo "  $(dim "formats:     ${#DISC_OUTPUT_FORMATS[@]}")"

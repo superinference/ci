@@ -17,7 +17,7 @@ if [ -z "${DISC_COMMANDS+x}" ]; then
     add-dir admission agents analytics architect background clear commit
     compact config context cost diff doctor exit export fast foreground
     frito goal help hooks index keybindings loop mcp memory mode model
-    output-style permissions persona plan profile provider provision providers quit
+    output-style permissions plan profile provider provision providers quit
     recap resume review rewind safe-mode search serve session sessions
     skill skillbook skills status superinference symbols tasks theme
     thinking undo update usage
@@ -95,29 +95,30 @@ COVERED_ITEMS=$((COVERED_ITEMS + CMD_TESTED))
 echo ""
 printf "  $(bold 'Commands: %d / %d')\n" "$CMD_TESTED" "$CMD_TOTAL"
 
-section "Personas"
+section "Skills"
 
-PERSONA_TOTAL=${#DISC_PERSONAS[@]}
-PERSONA_TESTED=0
+SKILL_TOTAL=${#DISC_SKILLS[@]}
+SKILL_TESTED=0
 
-for persona in "${DISC_PERSONAS[@]}"; do
+for skill in "${DISC_SKILLS[@]}"; do
   found=false
-  if grep -q "persona $persona" "$SCRIPT_DIR/slash-commands.sh" 2>/dev/null; then
+  # A skill is "tested" when it has a real-run spec in skills.sh's manifest.
+  if jq -e --arg n "$skill" 'has($n)' "$SCRIPT_DIR/skill-tests.json" >/dev/null 2>&1; then
     found=true
   fi
   if $found; then
-    printf "  $(green '●')  %s\n" "$persona"
-    PERSONA_TESTED=$((PERSONA_TESTED + 1))
+    printf "  $(green '●')  %s\n" "$skill"
+    SKILL_TESTED=$((SKILL_TESTED + 1))
   else
-    printf "  $(yellow '○')  %s $(dim '(no test)')\n" "$persona"
+    printf "  $(yellow '○')  %s $(dim '(no test)')\n" "$skill"
   fi
 done
 
-TOTAL_ITEMS=$((TOTAL_ITEMS + PERSONA_TOTAL))
-COVERED_ITEMS=$((COVERED_ITEMS + PERSONA_TESTED))
+TOTAL_ITEMS=$((TOTAL_ITEMS + SKILL_TOTAL))
+COVERED_ITEMS=$((COVERED_ITEMS + SKILL_TESTED))
 
 echo ""
-printf "  $(bold 'Personas: %d / %d')\n" "$PERSONA_TESTED" "$PERSONA_TOTAL"
+printf "  $(bold 'Skills: %d / %d')\n" "$SKILL_TESTED" "$SKILL_TOTAL"
 
 section "Tools"
 
@@ -186,7 +187,7 @@ printf "  $(bold 'Total coverage: %d / %d (%d%%)')\n" "$COVERED_ITEMS" "$TOTAL_I
 echo ""
 printf "  Providers:  %d / %d\n" "$PROV_KEYED" "$PROV_TOTAL"
 printf "  Commands:   %d / %d\n" "$CMD_TESTED" "$CMD_TOTAL"
-printf "  Personas:   %d / %d\n" "$PERSONA_TESTED" "$PERSONA_TOTAL"
+printf "  Skills:     %d / %d\n" "$SKILL_TESTED" "$SKILL_TOTAL"
 printf "  Tools:      %d / %d\n" "$TOOL_TESTED" "$TOOL_TOTAL"
 printf "  Flags:      %d / %d\n" "$FLAG_TESTED" "$FLAG_TOTAL"
 echo ""

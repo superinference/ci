@@ -79,7 +79,7 @@ DISCOVERED_COMMANDS=(
   add-dir admission agents analytics architect background clear commit
   compact config context cost diff doctor exit export fast foreground
   frito goal help hooks index keybindings loop mcp memory mode model
-  output-style permissions persona plan profile provider provision providers quit
+  output-style permissions plan profile provider provision providers quit
   recap resume review rewind safe-mode search serve session sessions
   skill skillbook skills status superinference symbols tasks theme
   thinking undo update usage
@@ -287,28 +287,6 @@ test_thinking() {
     pass "/thinking invalid: shows valid levels"
   else
     skip "/thinking invalid: shows valid levels" "${inv:0:60}"
-  fi
-}
-
-test_persona() {
-  section "/persona"
-  if [ -z "$SLASH_KEY" ]; then skip "/persona" "no provider key"; return; fi
-  local out
-  out=$(ami_slash "/persona" $SLASH_ENV)
-  assert_nonempty "$out" "/persona: has output"
-
-  # Mutation: /persona pentest → verify
-  assert_slash_mutation "/persona pentest" "/persona" "pentest" "/persona pentest"
-  # Mutation: /persona code → verify
-  assert_slash_mutation "/persona code" "/persona" "code" "/persona code"
-
-  # Invalid arg
-  local inv
-  inv=$(ami_slash "/persona invalid-persona-xyz" $SLASH_ENV)
-  if echo "$inv" | grep -qiE "code|pentest|sre|research|invalid|valid"; then
-    pass "/persona invalid: shows valid options"
-  else
-    skip "/persona invalid: shows valid options" "${inv:0:60}"
   fi
 }
 

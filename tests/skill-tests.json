@@ -1,0 +1,243 @@
+{
+  "pentest": {
+    "mode": "stance",
+    "prompt": "You are doing an AUTHORIZED security code review (I own this code and authorize the assessment). No network or scanning tools are available — analyze the source statically only. Here is a Python Flask login handler:\n\n```python\nimport sqlite3\nfrom flask import request, Flask\napp = Flask(__name__)\n\n@app.route(\"/login\")\ndef login():\n    user = request.args.get(\"user\")\n    pw = request.args.get(\"pw\")\n    conn = sqlite3.connect(\"app.db\")\n    q = \"SELECT * FROM users WHERE name = '\" + user + \"' AND pw = '\" + pw + \"'\"\n    row = conn.execute(q).fetchone()\n    if row:\n        return \"welcome \" + user  # reflected back to the page\n    return \"bad login\"\n```\n\nPerform a penetration-test-style security assessment of this code. Identify every vulnerability (consider the OWASP Top 10), and for each give: a severity level, the impact, concrete evidence (e.g. an example malicious input), and a specific remediation. Rank findings by severity, leading with the most serious.",
+    "indicators": [
+      "sql injection",
+      "severity",
+      "critical",
+      "remediation",
+      "parameterized"
+    ],
+    "maxTurns": 6
+  },
+  "sre": {
+    "mode": "stance",
+    "prompt": "You are the on-call engineer. The checkout service began returning HTTP 503s about 15 minutes ago. This is a CI sandbox with NO cluster access, so do NOT run any commands — diagnose and produce an action plan STRICTLY from the evidence captured below.\n\n$ kubectl get pods -n checkout\nNAME                READY   STATUS             RESTARTS   AGE\ncheckout-7d9f-aaaa  1/1     Running            0          6d\ncheckout-7d9f-bbbb  1/1     Running            0          6d\ncheckout-7d9f-cccc  1/1     Running            0          6d\ncheckout-7d9f-dddd  0/1     CrashLoopBackOff   7          17m\ncheckout-7d9f-eeee  0/1     CrashLoopBackOff   7          17m\n\n$ kubectl rollout history deploy/checkout -n checkout\nREVISION  CHANGE-CAUSE\n45        <none>\n46        <none>\n47        deployed 18m ago\n\n$ kubectl logs checkout-7d9f-dddd -n checkout --previous\npanic: nil config: FEATURE_FLAGS unset\n\nRespond with: (1) the single most-likely root cause tied to this evidence, (2) how to mitigate and restore service RIGHT NOW, (3) the blast radius of that action and the exact rollback step, and (4) the monitoring/alert that was missing and should be added.",
+    "indicators": [
+      "blast radius",
+      "rollback",
+      "mitigat",
+      "feature_flags",
+      "revision 47"
+    ],
+    "maxTurns": 6
+  },
+  "research": {
+    "mode": "stance",
+    "prompt": "Conduct a short quantitative research analysis on the dataset below. This is the COMPLETE data — do NOT search the web; everything you need is inline here. Two groups of participants had their task-completion time (in seconds) recorded:\n\nGroup A: 10, 20, 30\nGroup B: 40, 50, 60\n\nUsing python, compute the mean task-completion time for each group and the difference between them, and determine which group was slower. Then write a structured research report as a Markdown file inside an analysis/ subdirectory, with the sections: Abstract, Method, Findings, Discussion, Conclusion, References (cite the provided dataset as the source). When finished, report the path to the written file plus a one-line summary of the result.",
+    "indicators": [
+      "analysis/",
+      ".md",
+      "20",
+      "50",
+      "group b"
+    ],
+    "maxTurns": 12
+  },
+  "swebench": {
+    "mode": "stance",
+    "prompt": "You are resolving a SWE-bench instance. The \"repository\" is tiny and its full contents are provided inline below. FIRST write these two files into the current directory exactly as shown, then run `git init && git add -A && git commit -m init` to establish a clean baseline. THEN solve the issue.\n\nFILE: calc.py\n```\ndef running_total(nums):\n    total = 0\n    result = []\n    for n in nums:\n        total = n\n        result.append(total)\n    return result\n```\n\nFILE: test_calc.py\n```\nfrom calc import running_total\n\n\ndef test_running_total():\n    assert running_total([1, 2, 3]) == [1, 3, 6]\n    assert running_total([]) == []\n    assert running_total([5]) == [5]\n```\n\nISSUE: `running_total([1, 2, 3])` is supposed to return the cumulative running sum `[1, 3, 6]`, but it actually returns `[1, 2, 3]`. Running `pytest -q` fails on `test_running_total`.\n\nResolve it: reproduce the failure with pytest first, localize and fix the ROOT CAUSE in calc.py with the smallest possible change (do NOT edit test_calc.py — it is the graded test), then re-run pytest until it passes. Finish by printing `git diff` and summarizing the root cause, the exact change you made, and the test command that now passes.",
+    "indicators": [
+      "running_total",
+      "root cause",
+      "pytest",
+      "pass"
+    ],
+    "maxTurns": 16
+  },
+  "code-review": {
+    "mode": "invoke",
+    "prompt": "Invoke the \"code-review\" skill at medium effort to review the Python function below. There is no git repository here, so treat the pasted code as the review target and write your full review as markdown in your final response (do not rely on any external reporting tool).\n\n```python\ndef average(nums):\n    total = 0\n    for n in nums:\n        total += n\n    return total / len(nums)\n```",
+    "indicators": [
+      "correctness",
+      "failure scenario",
+      "zero",
+      "empty"
+    ],
+    "maxTurns": 8
+  },
+  "explain": {
+    "mode": "invoke",
+    "prompt": "Invoke the \"explain\" skill to explain this JavaScript function in depth. Here is the complete, self-contained code — do not look for any other files, everything you need is inline:\n\n```js\nfunction nextDelay(attempt, base, max) {\n  if (attempt < 0) return base;\n  const delay = base * Math.pow(2, attempt);\n  return Math.min(delay, max);\n}\n```\n\nExplain what this function does, its algorithm, its control flow, and its edge cases, following the explain skill's output template.",
+    "indicators": [
+      "what it does",
+      "exponential",
+      "edge case",
+      "negative"
+    ],
+    "maxTurns": 5
+  },
+  "refactor": {
+    "mode": "invoke",
+    "prompt": "Use the \"refactor\" skill to clean up the following JavaScript function. Preserve its observable behavior exactly (same return values, same thrown errors) — this is a refactor, not a behavior change. Show each change as a before/after and confirm behavior is preserved. The code is self-contained; work on it inline (write it to a temp file if you want to sanity-check it with node).\n\n```js\nfunction getPrice(user, cart) {\n  if (user) {\n    if (cart) {\n      if (cart.items.length > 0) {\n        if (user.isMember) {\n          if (cart.total > 100) {\n            return cart.total * 0.8;\n          } else {\n            return cart.total * 0.9;\n          }\n        } else {\n          return cart.total;\n        }\n      } else {\n        throw new Error('empty cart');\n      }\n    } else {\n      throw new Error('no cart');\n    }\n  } else {\n    throw new Error('no user');\n  }\n}\n```\n\nThe deep nesting is the main smell. Refactor it (e.g. guard clauses / early returns for the error cases) while keeping every return value and thrown error identical.",
+    "indicators": [
+      "before",
+      "after",
+      "guard",
+      "preserved"
+    ],
+    "maxTurns": 6
+  },
+  "test-gen": {
+    "mode": "invoke",
+    "prompt": "Invoke the \"test-gen\" skill to generate a comprehensive test suite for the function below. This project uses Node's built-in node:test framework with assert/strict and co-located *.test.ts files — match that exactly, add no new test dependency. There is no other code in the repo; work only from this snippet (do not search the filesystem for siblings). Produce the test-gen output: the detected framework/conventions, a cases-covered table spanning happy path, edge cases, and error cases, and the actual test file contents.\n\n```ts\nexport function parseRange(input: string): number[] {\n  if (typeof input !== 'string') throw new TypeError('input must be a string');\n  const parts = input.split('-').map(Number);\n  if (parts.length !== 2) throw new Error('range must have exactly two bounds');\n  const [start, end] = parts;\n  if (Number.isNaN(start) || Number.isNaN(end)) throw new Error('invalid range bounds');\n  if (start > end) throw new RangeError('start must be <= end');\n  const out: number[] = [];\n  for (let i = start; i <= end; i++) out.push(i);\n  return out;\n}\n```",
+    "indicators": [
+      "parserange",
+      "happy path",
+      "edge",
+      "throws",
+      "assert"
+    ],
+    "maxTurns": 6
+  },
+  "coding-discipline": {
+    "mode": "invoke",
+    "prompt": "Invoke the \"coding-discipline\" skill and follow its workflow exactly for this task. There is NO existing project; work in the current temp directory.\n\nHere is a small buggy Python function that is supposed to return True when a number is even, but it returns the opposite:\n\n    def is_even(n):\n        return n % 2 == 1\n\nDo this following coding-discipline: (1) identify the ROOT CAUSE of the bug rather than a workaround, (2) write the corrected `is_even` function to a file named is_even.py, (3) verify it by running a quick check (e.g. that is_even(4) is True and is_even(3) is False), and (4) finish with the skill's Verification Report using its exact section headings: \"## Change Summary\", \"## Files Modified\", and \"## Verification\". Keep the change minimal.",
+    "indicators": [
+      "root cause",
+      "change summary",
+      "files modified",
+      "is_even",
+      "verification"
+    ],
+    "maxTurns": 8
+  },
+  "adversarial-verifier": {
+    "mode": "invoke",
+    "prompt": "Use the adversarial-verifier skill to independently verify a bug fix. Everything you need is inline below — there is no project repo, so first write this module to a file under /tmp, then write and run a red-green test against it.\n\nModule under test (the FIXED version):\n```js\n// capRetries.mjs\nexport function capRetries(n) {\n  if (n < 0) return 0;   // fix: clamp negatives to 0\n  if (n > 5) return 5;   // fix: clamp above 5 to the max\n  return n;\n}\n```\n\nClaim to verify: the fix makes capRetries clamp its input to the range [0, 5]. Specifically, capRetries(-3) now returns 0 (the PRE-FIX behavior returned the input unchanged, i.e. -3), and capRetries(10) now returns 5 (pre-fix returned 10). Prove RED by stubbing/using the described pre-fix behavior (return n unchanged), prove GREEN against the fixed module above, and run at least one edge case (e.g. capRetries(0) and capRetries(5)). Return exactly one VERIFIED or REFUTED verdict in the skill's required output format.",
+    "indicators": [
+      "verified",
+      "red proven",
+      "edge case",
+      "command:"
+    ],
+    "maxTurns": 10
+  },
+  "code-graph": {
+    "mode": "invoke",
+    "prompt": "Invoke the \"code-graph\" skill to analyze the function `slugify`. There is no project checked out on disk — treat the four inline files below as the entire codebase, and reason over them directly (do not grep the empty temp dir). Report, in the skill's output format: its callers as file:line, the related test file plus the exact command to run it, and its dependency edges (Imports / Imported by). Report only — do not propose or apply any fix.\n\n// src/utils.ts\n1: export function slugify(input: string): string {\n2:   return input.toLowerCase().replace(/\\s+/g, '-');\n3: }\n\n// src/page.ts\n1: import { slugify } from './utils';\n2: export function pageSlug(title: string) {\n3:   return slugify(title);\n4: }\n\n// src/post.ts\n1: import { slugify } from './utils';\n2: export const postPath = (name: string) => '/' + slugify(name);\n\n// test/utils.test.ts\n1: import { slugify } from '../src/utils';\n2: test('slugify lowercases and dasherizes', () => { /* ... */ });",
+    "indicators": [
+      "callers",
+      "page.ts",
+      "post.ts",
+      "utils.test.ts",
+      "slugify"
+    ],
+    "maxTurns": 6
+  },
+  "adversarial-review": {
+    "mode": "invoke",
+    "prompt": "Invoke the \"adversarial-review\" skill and perform an adversarial due diligence review of the following Python module. This snippet IS the entire codebase under review — do NOT search for other files; review it inline. Report your findings with severity ratings, the affected dimension, and a concrete recommendation for each.\n\n```python\nimport sqlite3\n\nAPI_KEY = \"sk-live-9f8a7b6c5d4e3f2a1b0c\"  # production credential\n\ndef get_users(db, order_by):\n    query = \"SELECT * FROM users ORDER BY \" + order_by\n    return db.execute(query).fetchall()\n\ndef login(db, username, password):\n    row = db.execute(f\"SELECT pw FROM users WHERE name='{username}'\").fetchone()\n    if row and row[0] == password:\n        return True\n    return False\n```",
+    "indicators": [
+      "sql injection",
+      "severity",
+      "recommendation",
+      "security"
+    ],
+    "maxTurns": 8
+  },
+  "feature-completeness-assessment": {
+    "mode": "invoke",
+    "prompt": "Invoke the \"feature-completeness-assessment\" skill to assess the completeness of the \"user signup rate-limiter\" feature described entirely below. Everything you need is inline — do NOT look for other files; base every classification only on this evidence.\n\n=== FILE: src/ratelimit.ts ===\nconst hits = new Map<string, number[]>();\nexport function allowSignup(ip: string, now = Date.now()): boolean {\n  const win = hits.get(ip)?.filter(t => now - t < 60_000) ?? [];\n  if (win.length >= 5) return false;        // max 5 signups/min/ip\n  win.push(now); hits.set(ip, win);\n  return true;\n}\n// TODO: evict stale ip entries, Map grows unbounded\n\n=== FILE: test/ratelimit.test.ts ===\ntest(\"allows under limit\", () => assert.equal(allowSignup(\"1.1.1.1\"), true));\n// (only the happy path is covered; no test for the 6th-request block, no concurrency test)\n\n=== FACTS ===\n- No config knob for the limit (hardcoded 5/min).\n- No structured logging or metrics on rejections.\n- No docs anywhere (no README section, no runbook).\n- The POST /signup handler calls allowSignup but returns 200 even when it returns false (bug: never sends 429).\n\nProduce the full completeness report: a summary count table, an Overall Readiness verdict, the per-dimension Detailed Assessment table classifying each dimension as Fully implemented / MVP-Placeholder / Not implemented, and a prioritized Gaps and Recommendations section.",
+    "indicators": [
+      "feature completeness",
+      "fully implemented",
+      "not implemented",
+      "overall readiness"
+    ],
+    "maxTurns": 6
+  },
+  "performance-audit": {
+    "mode": "invoke",
+    "prompt": "Invoke the \"performance-audit\" skill and run a full performance audit on the Go code below. There is no larger project — audit exactly this snippet and produce the skill's report with findings ranked by severity (P0–P3) and quantified impact.\n\n```go\npackage billing\n\nimport \"fmt\"\n\ntype Charge struct {\n\tAmountUSD float64 // dollars, e.g. 19.99\n\tQty       int\n}\n\n// TotalLabel is called once per API request, iterating every charge.\nfunc TotalLabel(charges []Charge) string {\n\tlabel := \"\"\n\tvar total float64\n\tfor i := 0; i < len(charges); i++ {\n\t\ttotal += charges[i].AmountUSD * float64(charges[i].Qty)\n\t\tlabel = label + fmt.Sprintf(\"line %d: $%f\\n\", i, charges[i].AmountUSD)\n\t}\n\treturn label + fmt.Sprintf(\"total: $%f\", total)\n}\n```\n\nReport the specific issues (financial values in float64, fmt.Sprintf and string concatenation in the hot loop), each with severity, location, proposed fix, and expected impact, then a ROI prioritization.",
+    "indicators": [
+      "performance audit",
+      "float64",
+      "severity",
+      "quick win"
+    ],
+    "maxTurns": 8
+  },
+  "planning": {
+    "mode": "invoke",
+    "prompt": "Invoke the \"planning\" skill. ultrathink.\n\nI want to add per-client-IP token-bucket rate limiting to this tiny Node HTTP service. Here is the ENTIRE current codebase:\n\n```js\n// server.js\nconst http = require('http');\nconst { handle } = require('./router');\nhttp.createServer((req, res) => handle(req, res)).listen(3000);\n\n// router.js\nfunction handle(req, res) { res.end('ok'); }\nmodule.exports = { handle };\n```\n\nThe change must: add a new token-bucket middleware module, read limits (requests-per-minute, burst) from a new config.json, wire the middleware into server.js ahead of the router, return HTTP 429 when a client exceeds its limit, and add tests for the bucket logic.\n\nDo NOT write, edit, or create any code or files. Produce an IMPLEMENTATION PLAN ONLY. Decompose the work into concrete tracked tasks with their dependencies, and in your final reply lay out the plan with these sections: Goal, Context, Approach, the files to Change, a numbered Tasks breakdown, Risks & trade-offs, and Verification (the tests/commands you would run).",
+    "indicators": [
+      "goal",
+      "approach",
+      "tasks",
+      "verif"
+    ],
+    "maxTurns": 12
+  },
+  "task-orchestration": {
+    "mode": "invoke",
+    "prompt": "Use the task-orchestration skill to coordinate this work. (The skill is explicitly requested — invoke it.)\n\nI have three small, independent Python functions, each with a bug. Treat the review of each function as its own separate, independent step.\n\nDo exactly this:\n1. Decompose the request into exactly three ordered steps (one per function) and track them with the task_tracker tool, giving each step an activeForm label.\n2. Because these reviews are independent, delegate each one to an explore-mode subagent using the task tool. There is NO project on disk, so paste the full function source inline into each subagent prompt and ask it to return the single bug.\n3. Collect every subagent result, verify it, and mark each tracked step completed.\n\nThe three functions to review:\n\ndef add(a, b):\n    return a - b          # intended: return the sum of a and b\n\ndef is_even(n):\n    return n % 2 == 1     # intended: return True when n is even\n\ndef first(xs):\n    return xs[1]          # intended: return the FIRST element of xs\n\nProduce your final message in EXACTLY this format:\nstep 1: add — <the bug in one line>\nstep 2: is_even — <the bug in one line>\nstep 3: first — <the bug in one line>\nall steps completed\n\nThen add one sentence confirming you tracked the three steps with task_tracker and delegated each review to a subagent. Do this and nothing more, then stop.",
+    "indicators": [
+      "task_tracker",
+      "subagent",
+      "step 1",
+      "subtract",
+      "all steps completed"
+    ],
+    "maxTurns": 12
+  },
+  "review-changes-workflow": {
+    "mode": "invoke",
+    "prompt": "Invoke the \"review-changes-workflow\" skill to review the change below. There is NO git repository here — treat the inline diff itself as the complete change set to review (do not run git; review the hunk as given). Run the skill's find -> adversarially-verify -> synthesize flow and end your reply with the skill's ranked findings report, giving each finding a severity, a dimension, a concrete failure scenario, and a CONFIRMED or PLAUSIBLE verdict.\n\nChange set — file `utils.js`:\n```diff\n@@ function lastItem(arr) @@\n-function lastItem(arr) {\n-  return arr[arr.length - 1]   // return the final element\n-}\n+function lastItem(arr) {\n+  return arr[arr.length]       // \"simplified\"\n+}\n```\n\nThis function is called as `lastItem([10, 20, 30])` and callers expect the final element (30). Review the change and report what breaks.",
+    "indicators": [
+      "off-by-one",
+      "undefined",
+      "correctness",
+      "severity"
+    ],
+    "maxTurns": 14
+  },
+  "understand-codebase-workflow": {
+    "mode": "invoke",
+    "prompt": "Invoke the \"understand-codebase-workflow\" skill to produce a structured architecture map of the small codebase below. Treat these three inline files AS the repository (do not look for other files on disk); each file is one subsystem. Build the map from what the files actually contain: list each subsystem's purpose, entry points, and public API; trace the data flow end to end; and build the dependency graph from the real import statements, explicitly flagging any edge that violates the intended layering api -> service -> storage. Follow the skill's Output template (Overview, Subsystems table, Data flow, Dependency graph & direction, Key files, Risks).\n\n--- storage.py ---\n# low-level persistence layer\nfrom service import audit  # NOTE: layering oddity\n_DB = {}\ndef save(key, record):\n    audit(\"save\", key)\n    _DB[key] = record\ndef load(key):\n    return _DB.get(key)\n\n--- service.py ---\n# business logic layer\nimport storage\ndef audit(action, key):\n    print(f\"audit:{action}:{key}\")\ndef create_user(name):\n    uid = str(len(name))\n    storage.save(uid, {\"name\": name})\n    return uid\ndef get_user(uid):\n    return storage.load(uid)\n\n--- api.py ---\n# HTTP entry point\nimport service\ndef handle_post(name):\n    return {\"id\": service.create_user(name)}\ndef handle_get(uid):\n    return {\"user\": service.get_user(uid)}",
+    "indicators": [
+      "codebase map",
+      "subsystem",
+      "dependency",
+      "data flow",
+      "storage"
+    ],
+    "maxTurns": 14
+  },
+  "design-exploration-workflow": {
+    "mode": "invoke",
+    "prompt": "Invoke the \"design-exploration-workflow\" skill to explore this design decision. Everything you need is inline below; do not read any files or use the network.\n\nDecision: How should a single-process Node.js HTTP API enforce a per-client rate limit of 100 requests per minute?\n\nHard constraints:\n- No external services (no Redis, no database) — in-memory state only.\n- Must handle tens of thousands of distinct client IDs without unbounded memory growth.\n- Must be unit-testable without real wall-clock timers (time must be injectable).\n- Pure library code, no framework coupling.\n\nDo exactly what the skill prescribes: frame the problem, fan out 3 INDEPENDENT candidate approaches each optimized for a DIFFERENT angle (e.g. simplicity, memory efficiency, accuracy), score EVERY candidate on the SAME fixed rubric (correctness/fit, simplicity, memory, testability) with 1-5 numbers and a weighted total, then synthesize ONE recommended design that explicitly cites which candidate each borrowed element came from, and name a runner-up fallback.\n\nFollow the skill's output template exactly, including these sections: a \"## Candidates\" table, a \"## Scorecard\" matrix with a \"Weighted total\" row, a \"## Recommended Design (synthesis)\" section, and a \"## Runner-up / fallback\" section.",
+    "indicators": [
+      "scorecard",
+      "weighted total",
+      "recommended design",
+      "runner-up"
+    ],
+    "maxTurns": 8
+  },
+  "research-synthesis-workflow": {
+    "mode": "invoke",
+    "prompt": "Invoke the \"research-synthesis-workflow\" skill to answer the research question below. IMPORTANT: there are NO files on disk — the entire corpus is embedded inline in this prompt. Treat each inline block as a source you have already swept and deep-read. Run the skill's sweep -> deep-read -> synthesize -> critic loop over this inline corpus and emit the FULL report using the skill's report template, including these sections: \"## Answer\", \"## Evidence\" (a table with a Source citation of the form `file:line` and a Confidence column per row), \"## Synthesis\", \"## Contradictions & Caveats\", \"## Unknowns / Not Found\", and a final \"## Coverage\" line that states Rounds, Sources read, and the Critic verdict.\n\nResearch question: What caps the worker's retry behavior, and what is the exact retry limit?\n\nInline corpus:\n\n--- config.ts ---\n12: export const RETRY_LIMIT = 3; // max attempts before giving up\n\n--- worker.ts ---\n40: import { RETRY_LIMIT } from './config';\n41: for (let attempt = 1; attempt <= RETRY_LIMIT; attempt++) {\n42:   try { return run(); } catch (e) { if (attempt === RETRY_LIMIT) throw e; }\n43: }\n\n--- worker.test.ts ---\n8: it('fails on the 3rd attempt', () => { expect(() => worker()).toThrow(); /* after 3 tries */ });\n\n--- README.md ---\n5: The worker retries up to 5 times before surfacing the error.\n\n--- CHANGELOG.md ---\n(no entry explaining why the retry limit was chosen)\n\nThe answer is grounded by config.ts:12, worker.ts:41, and worker.test.ts:8; note the contradiction with README.md:5; and record that the rationale for the chosen value is an unknown not found in the corpus.",
+    "indicators": [
+      "## evidence",
+      "## synthesis",
+      "## coverage",
+      "critic verdict",
+      "retry_limit"
+    ],
+    "maxTurns": 15
+  },
+  "migration-workflow": {
+    "mode": "invoke",
+    "prompt": "Invoke the \"migration-workflow\" skill to drive this migration across the three small code snippets below. Treat these three snippets as the entire codebase (no other files exist).\n\nMIGRATION RULE: rename `getUser(id)` to `fetchUser({ id })` (positional arg -> single object arg). Update the import name too. Behavior must be preserved.\n\n--- src/a.ts ---\nimport { getUser } from './api';\nexport function loadProfile(id) { return getUser(id); }\n\n--- src/b.ts ---\nimport { getUser } from './api';\nexport const loadWithRetry = (id) => retry(() => getUser(id));\n\n--- test/legacy.test.ts ---\n// legacy test pins the OLD getUser(id) signature on purpose — must NOT change\nimport { getUser } from './api';\nassert.equal(getUser('1'), { id: '1' });\n\nRun the full discover -> transform -> verify workflow as the skill specifies:\n1. Discover and produce a deduplicated worklist of every site, classifying each as mechanical, contextual, decoy, or blocked (src/a.ts is a direct call, src/b.ts is wrapped in retry(), test/legacy.test.ts intentionally pins the old signature).\n2. Transform the real sites (show the before/after for each), and skip any decoy with a recorded reason — never touch decoys.\n3. Verify: grep for stragglers of the old `getUser(` pattern and confirm only known decoys remain.\nThen output the migration report using the skill's Report Template (Summary counts table, Verification, Transformed Sites, Skipped decoys, Blocked).",
+    "indicators": [
+      "discover",
+      "transform",
+      "verify",
+      "decoy",
+      "mechanical"
+    ],
+    "maxTurns": 10
+  }
+}

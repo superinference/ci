@@ -224,3 +224,29 @@ jobs:
         run: |
           export PATH="$HOME/.local/bin:$PATH"
           bash tests/agent-features.sh
+
+  skills:
+    name: skills (real run per native skill + coverage gate)
+    runs-on: ubuntu-latest
+    needs: install
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Install ami
+        run: |
+          curl -fsSL https://www.superinference.org/install.sh | bash
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      # Every wired skill (ami --introspect .skills[]) must have a real-run spec
+      # in tests/skill-tests.json, and each skill is exercised with a real agent
+      # run. A new skill shipped without a test entry fails the coverage gate.
+      - name: "Suite: Skills (real run per native skill + dynamic coverage gate)"
+        env:
+          FRITO_JSON: ${{ secrets.AMI_FRITO }}
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          bash tests/skills.sh

@@ -1987,23 +1987,23 @@ else
   fail "introspect: valid JSON manifest" "output: ${intro_out:0:200}"
 fi
 
-# ── Persona introspect validation ──────────────────────────────
-echo "  $(dim '▸ Persona introspect validation')"
-if echo "$intro_out" | jq -e '.personas' >/dev/null 2>&1; then
-  PERSONA_COUNT=$(echo "$intro_out" | jq '.personas | length')
-  pass "introspect/personas: $PERSONA_COUNT personas found"
+# ── Skills introspect validation ──────────────────────────────
+echo "  $(dim '▸ Skills introspect validation')"
+if echo "$intro_out" | jq -e '.skills' >/dev/null 2>&1; then
+  SKILL_COUNT=$(echo "$intro_out" | jq '.skills | length')
+  pass "introspect/skills: $SKILL_COUNT skills found"
 
-  for pname in code pentest sre research; do
-    if echo "$intro_out" | jq -e --arg n "$pname" '.personas[] | select(.name == $n)' >/dev/null 2>&1; then
-      pass "introspect/persona/$pname: present"
+  for sname in pentest sre research swebench; do
+    if echo "$intro_out" | jq -e --arg n "$sname" '.skills[] | select(.name == $n)' >/dev/null 2>&1; then
+      pass "introspect/skill/$sname: present"
     else
-      fail "introspect/persona/$pname: missing"
+      fail "introspect/skill/$sname: missing"
     fi
   done
 
-  # Validate pentest persona has MCP config (when introspect includes it)
-  if echo "$intro_out" | jq -e '.personas[] | select(.name == "pentest") | .mcpServers' >/dev/null 2>&1; then
-    KALI_IMAGE=$(echo "$intro_out" | jq -r '.personas[] | select(.name == "pentest") | .mcpServers[] | select(.name == "kali") | .image // empty')
+  # Validate pentest skill carries its Kali MCP stance config (when introspect includes it)
+  if echo "$intro_out" | jq -e '.skills[] | select(.name == "pentest") | .mcpServers' >/dev/null 2>&1; then
+    KALI_IMAGE=$(echo "$intro_out" | jq -r '.skills[] | select(.name == "pentest") | .mcpServers[] | select(.name == "kali") | .image // empty')
     if [ -n "$KALI_IMAGE" ]; then
       pass "introspect/pentest/kali: image=$KALI_IMAGE"
       echo "$KALI_IMAGE" | grep -q "kali-mcp-server" && pass "introspect/pentest/kali: correct image" || fail "introspect/pentest/kali: wrong image" "$KALI_IMAGE"
@@ -2012,9 +2012,9 @@ if echo "$intro_out" | jq -e '.personas' >/dev/null 2>&1; then
     fi
 
     # Validate autoAllowPatterns include security tools
-    if echo "$intro_out" | jq -e '.personas[] | select(.name == "pentest") | .autoAllowPatterns' >/dev/null 2>&1; then
+    if echo "$intro_out" | jq -e '.skills[] | select(.name == "pentest") | .autoAllowPatterns' >/dev/null 2>&1; then
       for tool_pat in "nmap*" "nikto*" "sqlmap*" "gobuster*" "hydra*"; do
-        if echo "$intro_out" | jq -e --arg p "$tool_pat" '.personas[] | select(.name == "pentest") | .autoAllowPatterns[] | select(. == $p)' >/dev/null 2>&1; then
+        if echo "$intro_out" | jq -e --arg p "$tool_pat" '.skills[] | select(.name == "pentest") | .autoAllowPatterns[] | select(. == $p)' >/dev/null 2>&1; then
           pass "introspect/pentest/autoAllow: $tool_pat"
         else
           fail "introspect/pentest/autoAllow: $tool_pat missing"
@@ -2023,16 +2023,16 @@ if echo "$intro_out" | jq -e '.personas' >/dev/null 2>&1; then
     fi
 
     # Validate mcpAutoAllowPatterns
-    if echo "$intro_out" | jq -e '.personas[] | select(.name == "pentest") | .mcpAutoAllowPatterns[] | select(. == "mcp__kali__*")' >/dev/null 2>&1; then
+    if echo "$intro_out" | jq -e '.skills[] | select(.name == "pentest") | .mcpAutoAllowPatterns[] | select(. == "mcp__kali__*")' >/dev/null 2>&1; then
       pass "introspect/pentest/mcpAutoAllow: mcp__kali__*"
     else
       skip "introspect/pentest/mcpAutoAllow" "not in introspect yet"
     fi
   else
-    skip "introspect/pentest/mcp" "persona details not in introspect manifest (UI enhancement pending)"
+    skip "introspect/pentest/mcp" "skill stance details not in introspect manifest"
   fi
 else
-  skip "introspect/personas" "not in introspect output"
+  skip "introspect/skills" "not in introspect output"
 fi
 
 # --config: custom config path
@@ -2202,7 +2202,7 @@ TESTED_FLAGS["--run-command"]=1
 TESTED_FLAGS["--scrollback-lines"]=1
 TESTED_FLAGS["--session-id"]=1
 TESTED_FLAGS["--thinking"]=1
-TESTED_FLAGS["--persona"]=1
+TESTED_FLAGS["--skill"]=1
 
 UNTESTED_FLAGS=0
 for flag in $DOCUMENTED_FLAGS; do
@@ -2221,14 +2221,14 @@ else
 fi
 
 # ═══════════════════════════════════════════════════════════════════
-# SECTION 15: Pentest Persona — Live Inference Test
-# Verifies the pentest persona can run a real security task: scan
+# SECTION 15: Pentest Skill — Live Inference Test
+# Verifies the pentest skill (pinned via --skill) runs a real security task: scan
 # localhost for an open port using nmap (or bash fallback). A python
 # HTTP server is started on a random port, the agent is told to scan
 # that port range, and we verify it reports the port as open.
 # ═══════════════════════════════════════════════════════════════════
 
-section "Pentest Persona (Live Inference)"
+section "Pentest Skill (Live Inference)"
 
 if [ -n "$TOOL_PID" ]; then
   # Start a simple HTTP server on a random port
@@ -2252,12 +2252,12 @@ with socketserver.TCPServer(('127.0.0.1', 0), handler) as httpd:
     PENTEST_PORT=$(cat "$PENTEST_TMPDIR/port")
     echo "  $(dim "Target HTTP server on 127.0.0.1:$PENTEST_PORT (pid=$PENTEST_PID)")"
 
-    # Run pentest persona with a port scan task
+    # Run pentest skill stance with a port scan task
     echo "  $(dim '▸ pentest/portscan: scanning localhost')"
     pwait "$TOOL_PID"
     pentest_out=$(timeout $((AMI_TIMEOUT * 2)) env -i PATH="$PATH" HOME="$HOME" $ENV_BASE \
       $TOOL_ENV \
-      $AMI --persona pentest --model "$TOOL_MODEL" --permission-mode auto-allow \
+      $AMI --skill pentest --model "$TOOL_MODEL" --permission-mode auto-allow \
       --max-turns $MAX_TURNS_TOOL \
       --prompt "Scan TCP port $PENTEST_PORT on 127.0.0.1 and tell me if it is open. Use bash with: nc -z -w2 127.0.0.1 $PENTEST_PORT || echo CLOSED. Report OPEN or CLOSED." \
       2>/dev/null) || true
