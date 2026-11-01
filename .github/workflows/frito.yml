@@ -278,3 +278,31 @@ jobs:
         run: |
           export PATH="$HOME/.local/bin:$PATH"
           bash tests/prompt-cache.sh
+
+  swebench:
+    name: swebench (real-instance pass@1 via official harness)
+    runs-on: ubuntu-latest
+    needs: install
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y jq git python3-venv
+
+      - name: Install ami
+        run: |
+          curl -fsSL https://www.superinference.org/install.sh | bash
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      # Runs the swebench stance on a REAL SWE-bench Lite instance and scores it
+      # with the official swebench Docker harness (per-instance pinned env). The
+      # suite skips on any infra/provider failure; only a valid run that leaves
+      # the instance unresolved fails the gate. Docker is pre-installed on
+      # ubuntu-latest.
+      - name: "Suite: SWE-bench Skill — real-instance pass@1 (official harness)"
+        env:
+          FRITO_JSON: ${{ secrets.AMI_FRITO }}
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          bash tests/swebench.sh

@@ -17,6 +17,7 @@ End-to-end test suite for [SuperInference AMI](https://www.superinference.org) â
 | **Providers All** | All 18 providers, model discovery, liveness probes |
 | **Slash Commands** | TUI commands via `expect`, dynamic discovery |
 | **Agent Features** | Tool execution, sessions, permissions, detached mode |
+| **SWE-bench** | Runs the `swebench` stance on a real SWE-bench Lite instance, scored pass@1 via the official Docker harness (`swebench.sh`) |
 | **OpenShell** | Container build, security scan, in-container tests |
 
 ## How It Works
@@ -39,7 +40,7 @@ cp frito.example.json frito.json   # fill in real keys
 FRITO_CONFIG=$PWD/frito.json bash tests/providers-all.sh
 
 # Run all suites
-for t in install security config cli providers providers-all slash-commands agent-features openshell; do
+for t in install security config cli providers providers-all slash-commands agent-features swebench openshell; do
   echo "=== $t ==="
   bash "tests/$t.sh"
 done
