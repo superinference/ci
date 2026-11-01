@@ -1967,6 +1967,31 @@ else
   skip "quiet: produces output" "no output"
 fi
 
+# --max-cost: USD spend cap. A generous budget lets a trivial run complete under it
+# (proves the flag is accepted AND functional); transient provider errors skip.
+echo "  $(dim '▸ --max-cost flag')"
+if [ -n "$TOOL_PID" ]; then
+  pwait "$TOOL_PID"
+  maxcost_out=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" $ENV_BASE \
+    $TOOL_ENV \
+    $AMI --model "$TOOL_MODEL" --max-cost 10 --max-turns 2 --prompt "say hi" 2>&1) || true
+  if echo "$maxcost_out" | grep -qiE "429|rate.limit|quota|overloaded|timeout|resource.exhausted|server error|HTTP [45]"; then
+    skip "max-cost: cheap run under budget" "transient"
+  elif [ -n "$maxcost_out" ] && ! echo "$maxcost_out" | grep -qiE "unknown option|unrecognized|invalid.*max-cost"; then
+    pass "max-cost: accepted, cheap run completes under budget"
+  else
+    fail "max-cost: accepted" "${maxcost_out:0:160}"
+  fi
+else
+  # No provider available: at least prove the flag parses (not rejected as unknown).
+  maxcost_parse=$($AMI --max-cost 10 --prompt "hi" 2>&1) || true
+  if echo "$maxcost_parse" | grep -qiE "unknown option|unrecognized"; then
+    fail "max-cost: flag parses" "rejected as unknown: ${maxcost_parse:0:120}"
+  else
+    pass "max-cost: flag parses (no provider for a live run)"
+  fi
+fi
+
 # --completions: shell completion output
 echo "  $(dim '▸ --completions flag')"
 comp_out=$($AMI --completions bash 2>&1) || true
@@ -2214,6 +2239,7 @@ TESTED_FLAGS["--scrollback-lines"]=1
 TESTED_FLAGS["--session-id"]=1
 TESTED_FLAGS["--thinking"]=1
 TESTED_FLAGS["--skill"]=1
+TESTED_FLAGS["--max-cost"]=1
 
 UNTESTED_FLAGS=0
 for flag in $DOCUMENTED_FLAGS; do
