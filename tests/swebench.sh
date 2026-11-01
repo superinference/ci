@@ -148,11 +148,13 @@ if [ -z "$AGENT_OUT" ] || ( echo "$AGENT_OUT" | jq -e '.error' >/dev/null 2>&1 \
 fi
 pass "agent/run: completed"
 
-# The prediction is the agent's working-tree diff (source only). The harness
-# applies the instance's own test_patch, so any test edits the agent made are
-# irrelevant — but we still exclude them so a stray test edit can't mask a fix.
+# The prediction is the agent's full working-tree diff vs base_commit (the
+# model_patch). Do NOT filter test paths: (a) the harness applies the instance's
+# own gold test_patch AFTER the model_patch, so a stray model test-edit is
+# overwritten (cheating is structurally prevented), and (b) a "*test*" filter
+# wrongly drops real source like src/_pytest/main.py (path contains "test").
 PATCH_FILE="$WORK/model_patch.diff"
-( cd "$REPO_DIR" && git diff -- . ':(exclude)*test*' ':(exclude)*/tests/*' ) > "$PATCH_FILE" 2>/dev/null || true
+( cd "$REPO_DIR" && git diff ) > "$PATCH_FILE" 2>/dev/null || true
 if [ ! -s "$PATCH_FILE" ]; then
   skip_exit "agent/patch: agent produced no source changes"
 fi
@@ -177,11 +179,15 @@ RUN_ID="frito-$(date -u +%s)"
 echo "  $(dim '▸ pulling the instance image + running FAIL_TO_PASS (this is slow)...')"
 HARNESS_LOG="$WORK/harness.log"
 set +e
+# --namespace swebench: PULL the prebuilt per-instance image from Docker Hub
+# (docker.io/swebench/sweb.eval.*) instead of building it locally (which needs
+# conda + minutes). This is the fast, CI-friendly path.
 ( cd "$WORK" && timeout "$HARNESS_TIMEOUT" python3 -m swebench.harness.run_evaluation \
     --dataset_name "$SWEBENCH_DATASET" \
     --predictions_path "$PREDS" \
     --run_id "$RUN_ID" \
     --instance_ids "$SWEBENCH_INSTANCE" \
+    --namespace swebench \
     --max_workers 1 ) >"$HARNESS_LOG" 2>&1
 HARNESS_RC=$?
 set -e
