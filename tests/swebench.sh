@@ -1,55 +1,64 @@
 #!/bin/bash
-# FRITO CI — SWE-bench Skill: real-instance pass@1 gate (official harness)
+# FRITO CI — SWE-bench Skill: real-instance pass@1 gate (OFFICIAL SWE-bench-Live)
 #
 # Exercises the `swebench` stance skill (skills/swebench/SKILL.md) on a REAL
-# SWE-bench Lite instance, scored with the OFFICIAL swebench harness so the
-# environment (old Python/deps) is pinned exactly via the instance's prebuilt
-# Docker image — the only faithful way to run a real instance (current runners
-# ship Python 3.12, which the pinned repos predate).
+# SWE-bench-Live instance, scored with the OFFICIAL evaluator the same way the
+# user's OCP/K8s benchmark runs it (see challenges/ocp_cluster): the official
+# `python -m evaluation.evaluation` from microsoft/SWE-bench-Live (+ its RepoLaunch
+# `launch` submodule), which pulls the instance's prebuilt Docker image, applies
+# the model_patch + the instance's gold test_patch inside it, runs the tests, and
+# parses them with the per-instance parser from the dataset. We never re-grade —
+# running the exact official command is the only way to avoid the score-inflation
+# traps (naive parser / baseline exclusion / patch fallbacks / patch order).
 #
-# Instance: pytest-dev__pytest-6116 — "pytest needs a one-char shortcut for
-# --collect-only". The gold fix adds a `--co` alias in src/_pytest/main.py; the
-# graded tests invoke `pytest --co`. Smallest-patch, self-contained (pytest's
-# own pytester tmpdirs — no network, no external fixtures), so it's the easiest
-# real instance for a pass@1 smoke gate.
+# Instance: cyclotruc__gitingest-94 (Python, SWE-bench-Live `lite` split) — the
+# EASIEST instance found: a 1-file, 1-hunk, 2-line gold fix in
+# src/gitingest/parse_query.py (accept "http://" URLs, not just "https://"),
+# graded by 1 FAIL_TO_PASS + 30 PASS_TO_PASS tests via `pytest`. Smallest patch
+# + fewest tests = the fastest, least-flaky real pass@1 smoke gate.
 #
 # Flow: clone repo@base_commit -> run `ami --skill swebench` to produce a patch
-# (prediction) -> official harness applies it + the instance's gold test_patch in
-# the instance Docker image and runs BOTH graded test sets from the dataset record:
-# FAIL_TO_PASS (must flip fail->pass with our patch) AND PASS_TO_PASS (must stay
-# passing — proves the fix regresses nothing). `resolved` requires both, so gating
-# on `resolved` already enforces PASS_TO_PASS; we do not run any tests ourselves.
+# (prediction) -> official evaluator applies it + the gold test_patch in the
+# prebuilt image and runs BOTH graded sets: FAIL_TO_PASS (must flip fail->pass)
+# AND PASS_TO_PASS (must stay passing — no regression). `resolved` requires both
+# (evaluation.evaluation: resolved = P2P failures==0 AND F2P failures==0 AND all
+# F2P pass), so gating on `resolved` already enforces PASS_TO_PASS.
 #
-# Requires: Docker/Podman, python3 (+ venv), pip, a live provider key (FRITO).
+# IMPORTANT: the evaluator must run DIRECTLY on the CI runner (not nested in a
+# container). RepoLaunch bind-mounts `os.getcwd()/tmp -> /mnt_tmp` into each eval
+# container; the model/test patches are written there, so the evaluator's cwd must
+# be a real path on the SAME Docker host that runs the eval containers. On a GH
+# runner that's automatic (the runner IS the docker host). Docker is pre-installed.
+#
+# Requires: Docker, python3 (+ venv), pip, git, a live provider key (FRITO).
 # Like pentest-mcp.sh this is a real-agent + container suite — exercised end to
 # end only in CI. Every infra/setup/transient failure SKIPs (never false-fails);
-# only a VALID run that leaves the instance unresolved fails the gate.
+# a valid run that leaves the instance unresolved SKIPs too (informational — agent
+# pass@1 is a model-capability outcome, not a CI-infra failure).
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/helpers.sh"
 
 # ── Instance definition (override via env to run a different one) ──────────────
-SWEBENCH_INSTANCE="${SWEBENCH_INSTANCE:-pytest-dev__pytest-6116}"
-SWEBENCH_REPO_URL="${SWEBENCH_REPO_URL:-https://github.com/pytest-dev/pytest}"
-SWEBENCH_BASE_COMMIT="${SWEBENCH_BASE_COMMIT:-e670ff76cbad80108bde9bab616b66771b8653cf}"
-# Must be a 5.x-era dataset that carries the `image`/`eval_script`/`log_parser`
-# columns (the classic princeton-nlp/SWE-bench_Lite predates them). The `image`
-# column holds the full docker.io/swebench/sweb.eval.* reference, so the harness
-# auto-pulls the prebuilt per-instance image — no --namespace flag needed (and 5.x
-# removed that flag). Both FAIL_TO_PASS and PASS_TO_PASS ship in each record.
-SWEBENCH_DATASET="${SWEBENCH_DATASET:-SWE-bench/SWE-bench_Lite}"
-SWEBENCH_PKG="${SWEBENCH_PKG:-swebench}"          # pinnable, e.g. swebench==3.0.17
-SWEBENCH_PROBLEM="${SWEBENCH_PROBLEM:-pytest has a long flag --collect-only to only collect tests without running them. Add a short one-character alias --co for it. Edit the pytest source so that running pytest with --co behaves exactly like --collect-only. Do not modify any test files; run the test suite to verify.}"
+SWEBENCH_INSTANCE="${SWEBENCH_INSTANCE:-cyclotruc__gitingest-94}"
+SWEBENCH_REPO_URL="${SWEBENCH_REPO_URL:-https://github.com/cyclotruc/gitingest}"
+SWEBENCH_BASE_COMMIT="${SWEBENCH_BASE_COMMIT:-2125765025c65fdd2aec89856bdc095dfb0fc826}"
+SWEBENCH_DATASET="${SWEBENCH_DATASET:-SWE-bench-Live/SWE-bench-Live}"
+SWEBENCH_SPLIT="${SWEBENCH_SPLIT:-lite}"
+SWEBENCH_EVAL_REPO="${SWEBENCH_EVAL_REPO:-https://github.com/microsoft/SWE-bench-Live.git}"
+SWEBENCH_EVAL_REF="${SWEBENCH_EVAL_REF:-main}"
+SWEBENCH_PROBLEM="${SWEBENCH_PROBLEM:-Git Ingest requests fail when the input repository URL starts with \"http://\" instead of \"https://\". This is likely because _parse_url in parse_query.py explicitly checks only for \"https://\". Fix the source so that http:// URLs are handled the same as https:// URLs. Do not modify any test files; run the test suite to verify.}"
 
-AGENT_TIMEOUT="${SWEBENCH_AGENT_TIMEOUT:-360}"    # autonomous multi-step run
+AGENT_TIMEOUT="${SWEBENCH_AGENT_TIMEOUT:-360}"     # autonomous multi-step run
 AGENT_TURNS="${SWEBENCH_AGENT_TURNS:-50}"
-HARNESS_TIMEOUT="${SWEBENCH_HARNESS_TIMEOUT:-1800}" # image pull + build + eval
+HARNESS_TIMEOUT="${SWEBENCH_HARNESS_TIMEOUT:-1800}" # image pull + eval
+PIP_TIMEOUT="${SWEBENCH_PIP_TIMEOUT:-420}"          # evaluator install
 
 echo ""
-echo "$(bold 'FRITO SWE-bench Skill — real-instance pass@1 gate')"
+echo "$(bold 'FRITO SWE-bench Skill — real-instance pass@1 gate (official SWE-bench-Live)')"
 echo "$(dim "Date: $(date -u +%Y-%m-%dT%H:%M:%SZ)")"
-echo "$(dim "Instance: $SWEBENCH_INSTANCE  |  Binary: $AMI")"
+echo "$(dim "Instance: $SWEBENCH_INSTANCE ($SWEBENCH_DATASET:$SWEBENCH_SPLIT)  |  Binary: $AMI")"
 echo ""
 
 # ═══════════════════════════════════════════════════════════════════
@@ -63,16 +72,16 @@ skip_exit() { skip "$@"; summary; exit 0; }
 
 section "Prerequisites"
 
-CONTAINER_RT=""
-command -v docker &>/dev/null && docker info &>/dev/null && CONTAINER_RT="docker"
-[ -z "$CONTAINER_RT" ] && command -v podman &>/dev/null && CONTAINER_RT="podman"
-if [ -z "$CONTAINER_RT" ]; then
-  skip_exit "prereq/runtime: no working docker/podman (official harness needs containers)"
+# The official evaluator talks to the Docker daemon directly (docker SDK + CLI).
+if ! command -v docker &>/dev/null || ! docker info &>/dev/null; then
+  skip_exit "prereq/runtime: no working docker (the official evaluator needs it)"
 fi
-pass "prereq/runtime: $CONTAINER_RT available"
+pass "prereq/runtime: docker available"
 
 if ! command -v python3 &>/dev/null; then skip_exit "prereq/python3: not found"; fi
 pass "prereq/python3: $(python3 --version 2>&1)"
+if ! command -v git &>/dev/null; then skip_exit "prereq/git: not found"; fi
+pass "prereq/git: $(git --version 2>&1)"
 
 # Resolve a live provider. SWE-bench needs a strong coding model + big context.
 TOOL_PID="" TOOL_MODEL="" TOOL_ENV=""
@@ -105,25 +114,34 @@ else
   skip_exit "prereq/skill: installed binary has no skill framework" "$($AMI --version 2>/dev/null | head -1)"
 fi
 
-# Official harness (isolated venv so we never touch the system site-packages).
+# Workspace (real path on the runner — RepoLaunch mounts getcwd()/tmp into the
+# eval container, so this MUST be a path the host Docker daemon can see).
 WORK=$(mktemp -d "${TMPDIR:-/tmp}/swebench-XXXXXX")
 cleanup() { rm -rf "$WORK" 2>/dev/null || true; }
 trap cleanup EXIT
 
+# Official evaluator: clone microsoft/SWE-bench-Live (+ RepoLaunch submodule) and
+# install it into an isolated venv — exactly as the OCP benchmark does.
+EVAL_DIR="$WORK/SWE-bench-Live"
+echo "  $(dim 'cloning the official SWE-bench-Live evaluator (+ RepoLaunch submodule)...')"
+if ! timeout 300 git clone -q --recurse-submodules --depth 1 \
+       -b "$SWEBENCH_EVAL_REF" "$SWEBENCH_EVAL_REPO" "$EVAL_DIR"; then
+  skip_exit "prereq/evaluator: could not clone $SWEBENCH_EVAL_REPO"
+fi
 VENV="$WORK/venv"
 if ! python3 -m venv "$VENV" >/dev/null 2>&1; then
   skip_exit "prereq/harness: python venv unavailable (need python3-venv)"
 fi
 # shellcheck disable=SC1091
 . "$VENV/bin/activate"
-echo "  $(dim 'installing the official swebench harness...')"
-if ! timeout 300 pip install -q "$SWEBENCH_PKG" >/dev/null 2>&1; then
-  skip_exit "prereq/harness: pip install $SWEBENCH_PKG failed"
+echo "  $(dim 'installing the official evaluator (pip install -e . -e ./launch)...')"
+if ! ( cd "$EVAL_DIR" && timeout "$PIP_TIMEOUT" pip install -q -e . -e ./launch ) >/dev/null 2>&1; then
+  skip_exit "prereq/harness: pip install of the official evaluator failed"
 fi
-if ! python3 -c "import swebench" 2>/dev/null; then
-  skip_exit "prereq/harness: swebench import failed after install"
+if ! ( cd "$EVAL_DIR" && python3 -c "import evaluation.evaluation; from launch.core.runtime import SetupRuntime" ) 2>/dev/null; then
+  skip_exit "prereq/harness: evaluator import failed after install"
 fi
-pass "prereq/harness: swebench installed ($(python3 -c 'import swebench;print(getattr(swebench,"__version__","?"))' 2>/dev/null))"
+pass "prereq/harness: official SWE-bench-Live evaluator installed ($(cd "$EVAL_DIR" && git rev-parse --short HEAD 2>/dev/null))"
 
 # ═══════════════════════════════════════════════════════════════════
 # Step 1 — produce a prediction patch with the agent
@@ -157,10 +175,9 @@ fi
 pass "agent/run: completed"
 
 # The prediction is the agent's full working-tree diff vs base_commit (the
-# model_patch). Do NOT filter test paths: (a) the harness applies the instance's
-# own gold test_patch AFTER the model_patch, so a stray model test-edit is
-# overwritten (cheating is structurally prevented), and (b) a "*test*" filter
-# wrongly drops real source like src/_pytest/main.py (path contains "test").
+# model_patch). Do NOT filter test paths: the evaluator applies the instance's own
+# gold test_patch anyway (a stray model test-edit is overwritten), and a "*test*"
+# filter wrongly drops real source whose path contains "test".
 PATCH_FILE="$WORK/model_patch.diff"
 ( cd "$REPO_DIR" && git diff ) > "$PATCH_FILE" 2>/dev/null || true
 if [ ! -s "$PATCH_FILE" ]; then
@@ -169,58 +186,73 @@ fi
 pass "agent/patch: $(wc -l < "$PATCH_FILE") diff lines produced"
 
 # ═══════════════════════════════════════════════════════════════════
-# Step 2 — score with the official harness (pinned env via Docker image)
+# Step 2 — score with the OFFICIAL SWE-bench-Live evaluator
 # ═══════════════════════════════════════════════════════════════════
-section "Official harness evaluation"
+section "Official evaluation"
 
-PREDS="$WORK/preds.jsonl"
-python3 - "$SWEBENCH_INSTANCE" "$PATCH_FILE" > "$PREDS" <<'PY'
+# preds.json: a JSON object keyed by instance_id (the format evaluation.evaluation
+# expects for --patch_dir); model_patch is the agent's full diff.
+PREDS="$WORK/preds.json"
+python3 - "$SWEBENCH_INSTANCE" "$PATCH_FILE" "$PREDS" <<'PY'
 import json, sys
-inst, patch_file = sys.argv[1], sys.argv[2]
+inst, patch_file, out = sys.argv[1], sys.argv[2], sys.argv[3]
 with open(patch_file) as f:
     patch = f.read()
-print(json.dumps({"instance_id": inst, "model_name_or_path": "ami", "model_patch": patch}))
+with open(out, "w") as f:
+    json.dump({inst: {"model_name_or_path": "ami", "instance_id": inst, "model_patch": patch}}, f)
 PY
-pass "harness/preds: wrote prediction for $SWEBENCH_INSTANCE"
+pass "eval/preds: wrote prediction for $SWEBENCH_INSTANCE"
 
-RUN_ID="frito-$(date -u +%s)"
+OUTPUT_DIR="$WORK/output"
+mkdir -p "$OUTPUT_DIR"
 echo "  $(dim '▸ pulling the instance image + running FAIL_TO_PASS + PASS_TO_PASS (slow)...')"
 HARNESS_LOG="$WORK/harness.log"
 set +e
-# swebench 5.x has NO --namespace flag: the dataset's `image` column already names
-# the prebuilt per-instance image (docker.io/swebench/sweb.eval.*), and
-# run_instances auto-pulls it when absent locally (run_evaluation.py build_container:
-# images.get -> on ImageNotFound, images.pull). So we just name the dataset + id.
-( cd "$WORK" && timeout "$HARNESS_TIMEOUT" python3 -m swebench.harness.run_evaluation \
-    --dataset_name "$SWEBENCH_DATASET" \
-    --predictions_path "$PREDS" \
-    --run_id "$RUN_ID" \
-    --instance_ids "$SWEBENCH_INSTANCE" \
-    --max_workers 1 ) >"$HARNESS_LOG" 2>&1
+# Run the evaluator DIRECTLY on the runner (cwd inside the eval repo so
+# RepoLaunch's getcwd()/tmp mount is a real host path). This is the exact official
+# command the OCP benchmark uses, minus the K8s DinD wrapper.
+( cd "$EVAL_DIR" && timeout "$HARNESS_TIMEOUT" python3 -m evaluation.evaluation \
+    --dataset "$SWEBENCH_DATASET" \
+    --split "$SWEBENCH_SPLIT" \
+    --patch_dir "$PREDS" \
+    --platform linux \
+    --workers 1 \
+    --output_dir "$OUTPUT_DIR" \
+    --overwrite 1 \
+    --instance_ids "$SWEBENCH_INSTANCE" ) >"$HARNESS_LOG" 2>&1
 HARNESS_RC=$?
 set -e
 
-# Infra failures (image pull, docker daemon, OOM) -> skip, not fail.
-if [ "$HARNESS_RC" -ne 0 ]; then
-  skip_exit "harness/run: harness could not evaluate (rc=$HARNESS_RC)" "$(tail -1 "$HARNESS_LOG" 2>/dev/null)"
+# The evaluator writes output/<instance_id>/report.json with a `resolved` bool.
+REPORT="$OUTPUT_DIR/$SWEBENCH_INSTANCE/report.json"
+if [ ! -f "$REPORT" ]; then
+  skip_exit "eval/report: no report produced (rc=$HARNESS_RC)" "$(tail -2 "$HARNESS_LOG" 2>/dev/null | tr '\n' ' ')"
 fi
+pass "eval/report: $SWEBENCH_INSTANCE/report.json"
 
-# Parse the report: swebench writes <model>.<run_id>.json with resolved_ids.
-REPORT=$(ls "$WORK"/ami.*"$RUN_ID"*.json "$WORK"/*"$RUN_ID"*.json 2>/dev/null | head -1 || true)
-if [ -z "$REPORT" ] || [ ! -f "$REPORT" ]; then
-  skip_exit "harness/report: no evaluation report produced (rc=$HARNESS_RC)" "$(tail -2 "$HARNESS_LOG" 2>/dev/null | tr '\n' ' ')"
-fi
-pass "harness/report: $(basename "$REPORT")"
-
-RESOLVED=$(jq -r --arg id "$SWEBENCH_INSTANCE" \
-  '(.resolved_ids // []) as $r | if ($r|index($id)) then "yes" else "no" end' "$REPORT" 2>/dev/null || echo "no")
-RESOLVED_COUNT=$(jq -r '.resolved_instances // (.resolved_ids|length) // 0' "$REPORT" 2>/dev/null || echo 0)
+RESOLVED=$(jq -r '.resolved // false' "$REPORT" 2>/dev/null || echo "false")
+F2P_OK=$(jq -r '.FAIL_TO_PASS.success | length' "$REPORT" 2>/dev/null || echo 0)
+F2P_BAD=$(jq -r '.FAIL_TO_PASS.failure | length' "$REPORT" 2>/dev/null || echo 0)
+P2P_OK=$(jq -r '.PASS_TO_PASS.success | length' "$REPORT" 2>/dev/null || echo 0)
+P2P_BAD=$(jq -r '.PASS_TO_PASS.failure | length' "$REPORT" 2>/dev/null || echo 0)
 
 section "Score"
-echo "  $(bold "SWE-bench pass@1: ${RESOLVED_COUNT}/1 resolved ($SWEBENCH_INSTANCE)")" >&2
-if [ "$RESOLVED" = "yes" ]; then
+echo "  $(bold "SWE-bench-Live pass@1: resolved=$RESOLVED ($SWEBENCH_INSTANCE)")" >&2
+echo "  $(dim "FAIL_TO_PASS ok/fail: $F2P_OK/$F2P_BAD  |  PASS_TO_PASS ok/fail: $P2P_OK/$P2P_BAD")" >&2
+if [ "$RESOLVED" = "true" ]; then
   pass "score/gate: $SWEBENCH_INSTANCE resolved (FAIL_TO_PASS flipped + PASS_TO_PASS held, via the agent's patch)"
 else
+  # Non-resolution is informational (not a hard gate), but surface WHY so a miss is
+  # debuggable from the CI log alone (the WORK dir is ephemeral).
+  echo "  $(dim '── diagnostics (non-resolved) ──')" >&2
+  echo "  $(dim 'report.json:')" >&2
+  jq '{resolved, FAIL_TO_PASS, PASS_TO_PASS}' "$REPORT" 2>/dev/null | sed 's/^/    /' >&2 || true
+  echo "  $(dim 'model_patch (what the agent produced):')" >&2
+  sed 's/^/    /' "$PATCH_FILE" >&2 || true
+  echo "  $(dim 'post_patch_log tail:')" >&2
+  tail -25 "$OUTPUT_DIR/$SWEBENCH_INSTANCE/post_patch_log.txt" 2>/dev/null | sed 's/^/    /' >&2 || true
+  echo "  $(dim 'evaluator log tail:')" >&2
+  tail -20 "$HARNESS_LOG" 2>/dev/null | sed 's/^/    /' >&2 || true
   skip "score: $SWEBENCH_INSTANCE NOT resolved this run (informational — not a hard gate)"
 fi
 
