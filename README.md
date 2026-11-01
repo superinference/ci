@@ -18,6 +18,7 @@ End-to-end test suite for [SuperInference AMI](https://www.superinference.org) â
 | **Slash Commands** | TUI commands via `expect`, dynamic discovery |
 | **Agent Features** | Tool execution, sessions, permissions, detached mode |
 | **SWE-bench** | Runs the `swebench` stance on a real SWE-bench Lite instance, scored pass@1 via the official Docker harness (`swebench.sh`) |
+| **Paste** | Large paste collapses to a compact chip in the interactive TUI (bracketed paste over a PTY via `expect`); capability-gated (`paste.sh`) |
 | **OpenShell** | Container build, security scan, in-container tests |
 
 ## How It Works
