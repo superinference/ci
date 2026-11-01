@@ -14,8 +14,11 @@
 # real instance for a pass@1 smoke gate.
 #
 # Flow: clone repo@base_commit -> run `ami --skill swebench` to produce a patch
-# (prediction) -> official harness applies it + the test_patch in the instance
-# Docker image and runs FAIL_TO_PASS -> we gate on `resolved`.
+# (prediction) -> official harness applies it + the instance's gold test_patch in
+# the instance Docker image and runs BOTH graded test sets from the dataset record:
+# FAIL_TO_PASS (must flip fail->pass with our patch) AND PASS_TO_PASS (must stay
+# passing — proves the fix regresses nothing). `resolved` requires both, so gating
+# on `resolved` already enforces PASS_TO_PASS; we do not run any tests ourselves.
 #
 # Requires: Docker/Podman, python3 (+ venv), pip, a live provider key (FRITO).
 # Like pentest-mcp.sh this is a real-agent + container suite — exercised end to
@@ -30,7 +33,12 @@ source "$SCRIPT_DIR/helpers.sh"
 SWEBENCH_INSTANCE="${SWEBENCH_INSTANCE:-pytest-dev__pytest-6116}"
 SWEBENCH_REPO_URL="${SWEBENCH_REPO_URL:-https://github.com/pytest-dev/pytest}"
 SWEBENCH_BASE_COMMIT="${SWEBENCH_BASE_COMMIT:-e670ff76cbad80108bde9bab616b66771b8653cf}"
-SWEBENCH_DATASET="${SWEBENCH_DATASET:-princeton-nlp/SWE-bench_Lite}"
+# Must be a 5.x-era dataset that carries the `image`/`eval_script`/`log_parser`
+# columns (the classic princeton-nlp/SWE-bench_Lite predates them). The `image`
+# column holds the full docker.io/swebench/sweb.eval.* reference, so the harness
+# auto-pulls the prebuilt per-instance image — no --namespace flag needed (and 5.x
+# removed that flag). Both FAIL_TO_PASS and PASS_TO_PASS ship in each record.
+SWEBENCH_DATASET="${SWEBENCH_DATASET:-SWE-bench/SWE-bench_Lite}"
 SWEBENCH_PKG="${SWEBENCH_PKG:-swebench}"          # pinnable, e.g. swebench==3.0.17
 SWEBENCH_PROBLEM="${SWEBENCH_PROBLEM:-pytest has a long flag --collect-only to only collect tests without running them. Add a short one-character alias --co for it. Edit the pytest source so that running pytest with --co behaves exactly like --collect-only. Do not modify any test files; run the test suite to verify.}"
 
@@ -176,18 +184,18 @@ PY
 pass "harness/preds: wrote prediction for $SWEBENCH_INSTANCE"
 
 RUN_ID="frito-$(date -u +%s)"
-echo "  $(dim '▸ pulling the instance image + running FAIL_TO_PASS (this is slow)...')"
+echo "  $(dim '▸ pulling the instance image + running FAIL_TO_PASS + PASS_TO_PASS (slow)...')"
 HARNESS_LOG="$WORK/harness.log"
 set +e
-# --namespace swebench: PULL the prebuilt per-instance image from Docker Hub
-# (docker.io/swebench/sweb.eval.*) instead of building it locally (which needs
-# conda + minutes). This is the fast, CI-friendly path.
+# swebench 5.x has NO --namespace flag: the dataset's `image` column already names
+# the prebuilt per-instance image (docker.io/swebench/sweb.eval.*), and
+# run_instances auto-pulls it when absent locally (run_evaluation.py build_container:
+# images.get -> on ImageNotFound, images.pull). So we just name the dataset + id.
 ( cd "$WORK" && timeout "$HARNESS_TIMEOUT" python3 -m swebench.harness.run_evaluation \
     --dataset_name "$SWEBENCH_DATASET" \
     --predictions_path "$PREDS" \
     --run_id "$RUN_ID" \
     --instance_ids "$SWEBENCH_INSTANCE" \
-    --namespace swebench \
     --max_workers 1 ) >"$HARNESS_LOG" 2>&1
 HARNESS_RC=$?
 set -e
@@ -211,7 +219,7 @@ RESOLVED_COUNT=$(jq -r '.resolved_instances // (.resolved_ids|length) // 0' "$RE
 section "Score"
 echo "  $(bold "SWE-bench pass@1: ${RESOLVED_COUNT}/1 resolved ($SWEBENCH_INSTANCE)")" >&2
 if [ "$RESOLVED" = "yes" ]; then
-  pass "score/gate: $SWEBENCH_INSTANCE resolved (test FAIL->PASS via the agent's patch)"
+  pass "score/gate: $SWEBENCH_INSTANCE resolved (FAIL_TO_PASS flipped + PASS_TO_PASS held, via the agent's patch)"
 else
   skip "score: $SWEBENCH_INSTANCE NOT resolved this run (informational — not a hard gate)"
 fi
