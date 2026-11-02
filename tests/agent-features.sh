@@ -1992,6 +1992,37 @@ else
   fi
 fi
 
+# --output-style: response output style (default|concise|explanatory). The
+# 'explanatory' style instructs the model to emit a "★ Insight" teaching callout.
+# Forward-compatible: ami silently ignores unknown flags (no "unknown option" to
+# detect), so guard on --help — SKIP when the released binary predates the flag;
+# once shipped, run it live, assert the flag is accepted, and (bonus, lenient)
+# that an explanatory run actually emits the ★ Insight callout end to end.
+echo "  $(dim '▸ --output-style flag')"
+if ! $AMI --help 2>&1 | grep -q -- '--output-style'; then
+  skip "output-style: accepted" "installed binary predates --output-style"
+elif [ -n "$TOOL_PID" ]; then
+  pwait "$TOOL_PID"
+  ostyle_out=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" $ENV_BASE \
+    $TOOL_ENV \
+    $AMI --model "$TOOL_MODEL" --output-style explanatory --max-turns 3 \
+    --prompt "Briefly explain what a mutex is, then add a short teaching callout." 2>&1) || true
+  if echo "$ostyle_out" | grep -qiE "429|rate.limit|quota|overloaded|timeout|resource.exhausted|server error|HTTP [45]"; then
+    skip "output-style: explanatory run" "transient"
+  elif [ -z "$ostyle_out" ]; then
+    fail "output-style: accepted" "no output"
+  else
+    pass "output-style: accepted, explanatory run completes"
+    if echo "$ostyle_out" | grep -qF '★ Insight'; then
+      pass "output-style/insight: explanatory emitted a ★ Insight callout"
+    else
+      skip "output-style/insight: ★ Insight callout" "model did not emit the marker this run"
+    fi
+  fi
+else
+  skip "output-style: live run" "no provider available"
+fi
+
 # --completions: shell completion output
 echo "  $(dim '▸ --completions flag')"
 comp_out=$($AMI --completions bash 2>&1) || true
@@ -2240,6 +2271,7 @@ TESTED_FLAGS["--session-id"]=1
 TESTED_FLAGS["--thinking"]=1
 TESTED_FLAGS["--skill"]=1
 TESTED_FLAGS["--max-cost"]=1
+TESTED_FLAGS["--output-style"]=1
 
 UNTESTED_FLAGS=0
 for flag in $DOCUMENTED_FLAGS; do
