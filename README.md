@@ -19,6 +19,7 @@ End-to-end test suite for [SuperInference AMI](https://www.superinference.org) �
 | **Agent Features** | Tool execution, sessions, permissions, detached mode |
 | **SWE-bench** | Runs the `swebench` stance on a real SWE-bench Lite instance, scored pass@1 via the official Docker harness (`swebench.sh`) |
 | **Paste** | Large paste collapses to a compact chip in the interactive TUI (bracketed paste over a PTY via `expect`); capability-gated (`paste.sh`) |
+| **MCP 2025** | MCP 2025-06-18 client capabilities — cursor pagination, elicitation decline + no-hang, elicitation/sampling capability advertisement, real tool call — validated against a local stdio MCP fixture + mock model (deterministic, no provider key); capability-gated (`mcp-2025.sh`) |
 | **OpenShell** | Container build, security scan, in-container tests |
 
 ## How It Works
@@ -41,7 +42,7 @@ cp frito.example.json frito.json   # fill in real keys
 FRITO_CONFIG=$PWD/frito.json bash tests/providers-all.sh
 
 # Run all suites
-for t in install security config cli providers providers-all slash-commands agent-features swebench openshell; do
+for t in install security config cli providers providers-all slash-commands agent-features mcp-2025 swebench openshell; do
   echo "=== $t ==="
   bash "tests/$t.sh"
 done

@@ -354,3 +354,30 @@ jobs:
         run: |
           export PATH="$HOME/.local/bin:$PATH"
           bash tests/paste.sh
+
+  mcp-2025:
+    name: mcp-2025 (MCP 2025-06-18 client capabilities)
+    runs-on: ubuntu-latest
+    needs: install
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Install ami
+        run: |
+          curl -fsSL https://www.superinference.org/install.sh | bash
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      # Drives detached ami against a local stdio MCP fixture + a local mock
+      # OpenAI-compatible model, so MCP 2025-06-18 behaviour (pagination,
+      # elicitation decline + no-hang, elicitation/sampling capability
+      # advertisement, real tool call) is validated deterministically — no
+      # provider key, no model flakiness. Capability-gated: a binary without
+      # 2025-06-18 support records no observations and skips instead of failing.
+      - name: "Suite: MCP 2025-06-18 — client capabilities (mock provider)"
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          bash tests/mcp-2025.sh
