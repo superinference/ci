@@ -79,7 +79,7 @@ DISCOVERED_COMMANDS=(
   add-dir admission agents analytics architect background clear commit
   compact config context cost diff doctor exit export fast foreground
   frito goal help hooks index keybindings loop mcp memory mode model
-  output-style permissions plan profile provider provision providers quit
+  output-style permissions plan plugin profile provider provision providers quit
   recap resume review rewind safe-mode search serve session sessions
   skill skillbook skills status superinference symbols tasks theme
   thinking undo update usage
@@ -617,6 +617,21 @@ test_skill() {
   local out
   out=$(ami_slash "/skill" $SLASH_ENV)
   pass "/skill: executed without crash"
+}
+
+test_plugin() {
+  section "/plugin"
+  if [ -z "$SLASH_KEY" ]; then skip "/plugin" "no provider key"; return; fi
+  # /plugin (no args) shows usage
+  local out
+  out=$(ami_slash "/plugin" $SLASH_ENV)
+  pass "/plugin: executed without crash"
+  # /plugin list should return (possibly empty) list
+  out=$(ami_slash "/plugin list" $SLASH_ENV)
+  pass "/plugin list: executed without crash"
+  # /plugin remove on nonexistent should not crash
+  out=$(ami_slash "/plugin remove nonexistent-ci-test" $SLASH_ENV)
+  pass "/plugin remove: executed without crash"
 }
 
 # ═══════════════════════════════════════════════════════════════════
