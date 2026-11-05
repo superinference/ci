@@ -518,4 +518,42 @@ done
 $ALL_MATCH && pass "concurrent: all --version consistent" || fail "concurrent: consistency"
 rm -rf "$CONC_DIR"
 
+# ═══════════════════════════════════════════════════════════════════
+# SECTION 15: --dequeue-strategy flag
+# ═══════════════════════════════════════════════════════════════════
+section "Flag: --dequeue-strategy"
+
+# 15a: Flag appears in introspect manifest
+INTRO_DQ=$(timeout $AMI_TIMEOUT $AMI --introspect 2>&1 || true)
+if echo "$INTRO_DQ" | jq -e '.flags[] | select(.name == "dequeue-strategy")' >/dev/null 2>&1; then
+  pass "dequeue-strategy: in introspect manifest"
+else
+  fail "dequeue-strategy: in introspect manifest" "not found in .flags[]"
+fi
+
+# 15b: Default value is 'drift'
+# When no --dequeue-strategy is provided, the resolver defaults to 'drift'.
+# We can verify this by checking the config-resolver behavior (tested in unit
+# tests), but here we verify the flag is accepted with each valid value.
+for strategy in drift inbetween attheend; do
+  dq_out=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" $ENV_BASE \
+    $AMI --dequeue-strategy "$strategy" --prompt "say ok" 2>&1) || true
+  if echo "$dq_out" | grep -qiE "unknown option|unrecognized|invalid.*dequeue"; then
+    fail "dequeue-strategy=$strategy: accepted" "rejected as unknown: ${dq_out:0:120}"
+  elif [ -z "$dq_out" ]; then
+    skip "dequeue-strategy=$strategy: accepted" "no output (no provider?)"
+  else
+    pass "dequeue-strategy=$strategy: accepted"
+  fi
+done
+
+# 15c: Invalid value is handled gracefully (should fall back to default)
+dq_bad=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" $ENV_BASE \
+  $AMI --dequeue-strategy "bogus" --prompt "say ok" 2>&1) || true
+if echo "$dq_bad" | grep -qiE "unknown option|unrecognized|ENOENT"; then
+  fail "dequeue-strategy=bogus: graceful" "crashed on invalid value: ${dq_bad:0:120}"
+else
+  pass "dequeue-strategy=bogus: falls back gracefully"
+fi
+
 summary

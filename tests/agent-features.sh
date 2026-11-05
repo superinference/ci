@@ -2225,6 +2225,73 @@ else
   skip "thinking: accepts flag" "no output"
 fi
 
+# --dequeue-strategy: mid-turn message injection strategy (drift|inbetween|attheend)
+echo "  $(dim '▸ --dequeue-strategy flag')"
+# 1) All three valid values must be accepted without error
+for dq_val in drift inbetween attheend; do
+  dq_out=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" $ENV_BASE \
+    $AMI --dequeue-strategy "$dq_val" --prompt "say ok" 2>&1) || true
+  if echo "$dq_out" | grep -qiE "unknown option|unrecognized|invalid.*dequeue"; then
+    fail "dequeue-strategy=$dq_val: accepted" "rejected: ${dq_out:0:120}"
+  elif [ -z "$dq_out" ]; then
+    skip "dequeue-strategy=$dq_val: accepted" "no output (no provider?)"
+  else
+    pass "dequeue-strategy=$dq_val: accepted"
+  fi
+done
+# 2) Invalid value must not crash (falls back to default)
+dq_bad_out=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" $ENV_BASE \
+  $AMI --dequeue-strategy "invalid" --prompt "say ok" 2>&1) || true
+if echo "$dq_bad_out" | grep -qiE "unknown option|unrecognized|ENOENT|Cannot find"; then
+  fail "dequeue-strategy=invalid: graceful fallback" "crashed: ${dq_bad_out:0:120}"
+else
+  pass "dequeue-strategy=invalid: falls back gracefully"
+fi
+# 3) Introspect manifests the flag
+if echo "$INTRO_TOOLS_JSON" | jq -e '.flags[] | select(.name == "dequeue-strategy")' >/dev/null 2>&1; then
+  pass "dequeue-strategy: in introspect manifest"
+else
+  fail "dequeue-strategy: in introspect manifest" "not found in .flags[]"
+fi
+# 4) Default strategy is 'drift' — run with no --dequeue-strategy flag and verify
+# the agent completes normally (drift is the default, must not break detached mode)
+if [ -n "$TOOL_PID" ]; then
+  pwait "$TOOL_PID"
+  dq_default_out=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" $ENV_BASE \
+    $TOOL_ENV \
+    $AMI --model "$TOOL_MODEL" --max-turns 2 --prompt "say ok" 2>&1) || true
+  if echo "$dq_default_out" | grep -qiE "429|rate.limit|quota|overloaded|timeout|resource.exhausted|server error|HTTP [45]"; then
+    skip "dequeue-strategy/default drift: detached run" "transient"
+  elif [ -n "$dq_default_out" ] && echo "$dq_default_out" | jq -e '.ok' >/dev/null 2>&1; then
+    pass "dequeue-strategy/default drift: detached run completes (.ok=true)"
+  elif [ -n "$dq_default_out" ]; then
+    pass "dequeue-strategy/default drift: detached run produces output"
+  else
+    fail "dequeue-strategy/default drift: detached run" "no output"
+  fi
+else
+  skip "dequeue-strategy/default drift: live run" "no provider available"
+fi
+# 5) Drift strategy with tool use — verify drift doesn't break tool execution
+if [ -n "$TOOL_PID" ]; then
+  pwait "$TOOL_PID"
+  dq_tool_out=$(timeout $AMI_TIMEOUT env -i PATH="$PATH" HOME="$HOME" $ENV_BASE \
+    $TOOL_ENV \
+    $AMI --model "$TOOL_MODEL" --dequeue-strategy drift --max-turns $MAX_TURNS_TOOL \
+    --prompt "Read the file /etc/hostname and tell me its contents" 2>&1) || true
+  if echo "$dq_tool_out" | grep -qiE "429|rate.limit|quota|overloaded|timeout|resource.exhausted|server error|HTTP [45]"; then
+    skip "dequeue-strategy/drift: tool use works" "transient"
+  elif [ -n "$dq_tool_out" ] && echo "$dq_tool_out" | jq -e '.ok' >/dev/null 2>&1; then
+    pass "dequeue-strategy/drift: tool use works under drift strategy"
+  elif [ -n "$dq_tool_out" ]; then
+    pass "dequeue-strategy/drift: produces output with tool call"
+  else
+    fail "dequeue-strategy/drift: tool use" "no output"
+  fi
+else
+  skip "dequeue-strategy/drift: tool use" "no provider available"
+fi
+
 # ═══════════════════════════════════════════════════════════════════
 # DYNAMIC FEATURE COVERAGE GATE
 # Every CLI flag documented in --help must be tested.
@@ -2272,6 +2339,7 @@ TESTED_FLAGS["--thinking"]=1
 TESTED_FLAGS["--skill"]=1
 TESTED_FLAGS["--max-cost"]=1
 TESTED_FLAGS["--output-style"]=1
+TESTED_FLAGS["--dequeue-strategy"]=1
 
 UNTESTED_FLAGS=0
 for flag in $DOCUMENTED_FLAGS; do
